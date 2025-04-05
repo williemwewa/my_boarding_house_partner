@@ -1,0 +1,48 @@
+{
+  "project_info": {
+    "project_number": "912000454318",
+    "project_id": "myboardinghouse-a1971",
+    "storage_bucket": "myboardinghouse-a1971.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:912000454318:android:287844a86f0cf150bfe73f",
+        "android_client_info": {
+          "package_name": "com.example.boarding_house"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_pfvGlMfGb1_uv937EUSycSX5iU9rFjM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    },
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:912000454318:android:7efb1d222ae552e7bfe73f",
+        "android_client_info": {
+          "package_name": "com.example.my_boarding_house_partner"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyA_pfvGlMfGb1_uv937EUSycSX5iU9rFjM"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
