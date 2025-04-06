@@ -1,4 +1,5 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
@@ -7,6 +8,9 @@ import 'package:image_picker/image_picker.dart';
 import 'package:firebase_storage/firebase_storage.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as path;
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
+import 'package:my_boarding_house_partner/utils/app_theme.dart';
 
 import 'package:my_boarding_house_partner/utils/app_theme.dart';
 import 'package:my_boarding_house_partner/models/property_model.dart';
@@ -125,19 +129,78 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
     // Keep existing images
     imageUrls.addAll(_existingImages);
 
-    // Upload new images
-    for (final image in _newImages) {
-      final String fileName = '${const Uuid().v4()}${path.extension(image.path)}';
-      final Reference ref = FirebaseStorage.instance.ref().child('properties').child(widget.propertyId).child('rooms').child(fileName);
-
-      final UploadTask uploadTask = ref.putFile(image);
-      final TaskSnapshot snapshot = await uploadTask.whenComplete(() => null);
-      final String downloadUrl = await snapshot.ref.getDownloadURL();
-
-      imageUrls.add(downloadUrl);
+    // If there are no new images, return just the existing ones
+    if (_newImages.isEmpty) {
+      return imageUrls;
     }
 
-    return imageUrls;
+    try {
+      // Get authentication token for API request
+      final user = FirebaseAuth.instance.currentUser;
+      final idToken = await user?.getIdToken() ?? '';
+
+      // Upload new images via API
+      for (final imageFile in _newImages) {
+        // Create unique filename
+        final String fileName = '${const Uuid().v4()}${path.extension(imageFile.path)}';
+
+        // Prepare the request
+        final url = Uri.parse('http://143.198.165.152/api/upload-image');
+
+        // Create multipart request
+        var request = http.MultipartRequest('POST', url);
+
+        // Set headers including authentication
+        request.headers.addAll({'Authorization': 'Bearer $idToken', 'Content-Type': 'multipart/form-data'});
+
+        // Add other fields
+        request.fields['propertyId'] = widget.propertyId;
+        request.fields['type'] = 'room';
+
+        // Add the file
+        var fileStream = http.ByteStream(imageFile.openRead());
+        var fileLength = await imageFile.length();
+
+        // Determine media type based on file extension
+        final fileExt = path.extension(imageFile.path).toLowerCase();
+        String contentType = 'image/jpeg'; // default
+        if (fileExt == '.png') {
+          contentType = 'image/png';
+        } else if (fileExt == '.gif') {
+          contentType = 'image/gif';
+        } else if (fileExt == '.webp') {
+          contentType = 'image/webp';
+        }
+
+        var multipartFile = http.MultipartFile('image', fileStream, fileLength, filename: fileName, contentType: MediaType.parse(contentType));
+
+        request.files.add(multipartFile);
+
+        // Send the request
+        var response = await request.send();
+
+        // Process the response
+        if (response.statusCode == 200) {
+          // Get response data
+          final responseData = await response.stream.bytesToString();
+          final jsonData = json.decode(responseData);
+
+          // Add the image URL from the API response
+          if (jsonData['url'] != null) {
+            imageUrls.add(jsonData['url']);
+          } else {
+            throw Exception('API returned success but no image URL');
+          }
+        } else {
+          throw Exception('Failed to upload image. Status code: ${response.statusCode}');
+        }
+      }
+
+      return imageUrls;
+    } catch (e) {
+      print('Error uploading images to API: $e');
+      throw Exception('Failed to upload images: $e');
+    }
   }
 
   Future<void> _saveRoom() async {
@@ -155,7 +218,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
         throw Exception('You must be logged in to add a room');
       }
 
-      // Upload images to Firebase Storage
+      // Upload images via API
       final List<String> imageUrls = await _uploadImages();
 
       // Create or update room in Firestore
@@ -241,7 +304,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.room == null ? 'Add New Room' : 'Edit Room', style: const TextStyle(color: Colors.black87)), backgroundColor: Colors.white, elevation: 0, iconTheme: const IconThemeData(color: Colors.black87)),
+      appBar: AppBar(title: Text(widget.room == null ? 'Add New Room' : 'Edit Room', style: const TextStyle(color: AppTheme.primaryColor)), backgroundColor: Colors.white, elevation: 0, iconTheme: const IconThemeData(color: AppTheme.primaryColor)),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -371,7 +434,7 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                                 backgroundColor: Colors.grey.shade200,
                                 selectedColor: AppTheme.primaryColor.withOpacity(0.2),
                                 checkmarkColor: AppTheme.primaryColor,
-                                labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : Colors.black87),
+                                labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : AppTheme.primaryColor),
                               );
                             }).toList(),
                       ),
@@ -383,8 +446,18 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                         height: 50,
                         child: ElevatedButton(
                           onPressed: _isSubmitting ? null : _saveRoom,
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                          child: _isSubmitting ? const CircularProgressIndicator(color: Colors.white) : Text(widget.room == null ? 'Add Room' : 'Update Room', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                          child:
+                              _isSubmitting
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : Text(
+                                    widget.room == null ? 'Add Room' : 'Update Room',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white, // Set text color to white
+                                    ),
+                                  ),
                         ),
                       ),
                       const SizedBox(height: 40),

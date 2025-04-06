@@ -21,7 +21,7 @@ class EmptyStateWidget extends StatelessWidget {
           children: [
             Icon(icon, size: 80, color: Colors.grey.shade300),
             const SizedBox(height: 24),
-            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: Colors.black87), textAlign: TextAlign.center),
+            Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold, color: AppTheme.primaryColor), textAlign: TextAlign.center),
             const SizedBox(height: 16),
             Text(message, style: TextStyle(fontSize: 16, color: Colors.grey.shade600), textAlign: TextAlign.center),
             if (extraMessage != null) ...[
@@ -36,8 +36,11 @@ class EmptyStateWidget extends StatelessWidget {
               const SizedBox(height: 32),
               ElevatedButton.icon(
                 onPressed: onButtonPressed,
-                icon: const Icon(Icons.add),
-                label: Text(buttonText!),
+                icon: const Icon(Icons.add, color: Colors.white),
+                label: Text(
+                  buttonText!,
+                  style: const TextStyle(color: Colors.white), // This makes the text white
+                ),
                 style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
               ),
             ],

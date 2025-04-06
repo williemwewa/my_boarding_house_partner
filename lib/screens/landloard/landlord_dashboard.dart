@@ -9,7 +9,6 @@ import 'package:my_boarding_house_partner/screens/landloard/landlord_bookings_sc
 import 'package:my_boarding_house_partner/screens/landloard/landlord_earnings_screen.dart';
 import 'package:my_boarding_house_partner/screens/landloard/landlord_messages_screen.dart';
 import 'package:my_boarding_house_partner/screens/landloard/landlord_profile_screen.dart';
-// import 'package:my_boarding_house_partner/screens/landloard/properties_screen.dart';
 
 import 'package:my_boarding_house_partner/utils/app_theme.dart';
 
@@ -102,46 +101,45 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
     }
   }
 
+  // Initialize pages as empty containers - they will be populated in build
   final List<Widget> _pages = [
-    // These will be initialized in build to avoid provider context issues
+    Container(), // Dashboard
     Container(), // PropertiesScreen
     Container(), // LandlordBookingsScreen
-    Container(), // LandlordEarningsScreen
     Container(), // LandlordMessagesScreen
     Container(), // LandlordProfileScreen
   ];
 
   @override
   Widget build(BuildContext context) {
-    // Initialize the pages with proper context
-    _pages[0] = const PropertiesScreen();
-    _pages[1] = const LandlordBookingsScreen();
-    _pages[2] = const LandlordEarningsScreen();
-    _pages[3] = const LandlordMessagesScreen();
-    _pages[4] = const LandlordProfileScreen();
+    // Initialize the pages with proper context and IN THE CORRECT ORDER
+    _pages[0] = _buildDashboardContent(); // Dashboard content
+    _pages[1] = const PropertiesScreen(); // Properties screen should be index 1
+    _pages[2] = const LandlordBookingsScreen(); // Bookings screen should be index 2
+    _pages[3] = const LandlordMessagesScreen(); // Messages screen should be index 3
+    _pages[4] = const LandlordProfileScreen(); // Profile screen should be index 4
 
     final authProvider = Provider.of<AppAuthProvider>(context);
-    final user = authProvider.user;
     final userData = authProvider.userData;
 
     return Scaffold(
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        title: Text(_currentIndex == 0 ? "Landlord Dashboard" : _getTitle(_currentIndex), style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: Text(_getTitle(_currentIndex), style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           if (_currentIndex == 0) // Only show notifications on dashboard
             IconButton(
               icon: const Icon(Icons.notifications_outlined),
-              color: Colors.black87,
+              color: AppTheme.primaryColor,
               onPressed: () {
                 // Navigate to notifications
               },
             ),
         ],
       ),
-      body: _currentIndex == 0 ? _buildDashboardHome(context) : _pages[_currentIndex],
+      body: _pages[_currentIndex],
       bottomNavigationBar: BottomNavigationBar(
         currentIndex: _currentIndex,
         onTap: (index) {
@@ -162,20 +160,28 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
         ],
       ),
       floatingActionButton:
-          _currentIndex == 1
+          _currentIndex ==
+                  1 // Show FAB only on Properties tab (index 1)
               ? FloatingActionButton(
                 backgroundColor: AppTheme.primaryColor,
                 child: const Icon(Icons.add),
                 onPressed: () {
                   // Navigate to add property screen
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => AddPropertyScreen())).then((_) {
+                    // Refresh properties screen when returning from add property
+                    _loadLandlordStats();
+                  });
                 },
               )
               : null,
     );
   }
 
+  // Helper method to get title based on current index
   String _getTitle(int index) {
     switch (index) {
+      case 0:
+        return "Landlord Dashboard";
       case 1:
         return "My Properties";
       case 2:
@@ -189,11 +195,10 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
     }
   }
 
-  Widget _buildDashboardHome(BuildContext context) {
-    final authProvider = Provider.of<AppAuthProvider>(context);
-    final userData = authProvider.userData;
-
+  // Dashboard content method
+  Widget _buildDashboardContent() {
     return RefreshIndicator(
+      color: AppTheme.primaryColor,
       onRefresh: _loadLandlordStats,
       child: SingleChildScrollView(
         physics: const AlwaysScrollableScrollPhysics(),
@@ -202,70 +207,16 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
           crossAxisAlignment: CrossAxisAlignment.start,
           children: [
             // Welcome Card
-            Card(
-              elevation: 2,
-              shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-              child: Padding(
-                padding: const EdgeInsets.all(16),
-                child: Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Row(
-                      children: [
-                        CircleAvatar(
-                          radius: 28,
-                          backgroundColor: AppTheme.primaryColor,
-                          backgroundImage: userData != null && userData['profileImageUrl'] != null ? NetworkImage(userData['profileImageUrl']) : null,
-                          child: userData == null || userData['profileImageUrl'] == null ? const Icon(Icons.person, size: 32, color: Colors.white) : null,
-                        ),
-                        const SizedBox(width: 16),
-                        Expanded(
-                          child: Column(
-                            crossAxisAlignment: CrossAxisAlignment.start,
-                            children: [
-                              Text("Welcome, ${userData != null ? userData['displayName'] ?? 'Landlord' : 'Landlord'}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
-                              const SizedBox(height: 4),
-                              Container(
-                                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                                decoration: BoxDecoration(color: userData != null && userData['isVerified'] == true ? Colors.green.withOpacity(0.1) : Colors.orange.withOpacity(0.1), borderRadius: BorderRadius.circular(20)),
-                                child: Text(userData != null && userData['isVerified'] == true ? "Verified Landlord" : "Verification Pending", style: TextStyle(fontSize: 12, color: userData != null && userData['isVerified'] == true ? Colors.green : Colors.orange, fontWeight: FontWeight.w500)),
-                              ),
-                            ],
-                          ),
-                        ),
-                      ],
-                    ),
-                    if (userData != null && userData['isVerified'] != true) ...[
-                      const SizedBox(height: 16),
-                      Container(
-                        padding: const EdgeInsets.all(12),
-                        decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade200)),
-                        child: Column(
-                          crossAxisAlignment: CrossAxisAlignment.start,
-                          children: [
-                            Row(
-                              crossAxisAlignment: CrossAxisAlignment.start,
-                              children: [Icon(Icons.info_outline, size: 16, color: Colors.orange.shade800), const SizedBox(width: 8), const Expanded(child: Text("Your account is pending verification", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: Colors.black87)))],
-                            ),
-                            const SizedBox(height: 4),
-                            const Text("You can explore the app, but you won't be able to add properties or accept bookings until your account is verified by an administrator.", style: TextStyle(fontSize: 12, color: Colors.black87)),
-                          ],
-                        ),
-                      ),
-                    ],
-                  ],
-                ),
-              ),
-            ),
+            _buildWelcomeCard(),
             const SizedBox(height: 20),
 
             // Stats Section
-            const Text("Your Dashboard", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text("Your Dashboard", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
             const SizedBox(height: 12),
 
             // Stats Grid
             _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
                 : GridView.count(
                   shrinkWrap: true,
                   physics: const NeverScrollableScrollPhysics(),
@@ -274,30 +225,32 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                   mainAxisSpacing: 12,
                   childAspectRatio: 1.5,
                   children: [
-                    _buildStatCard("Properties", _stats['propertyCount']?.toString() ?? "0", Icons.apartment, Colors.blue),
-                    _buildStatCard("Bed Spaces", _stats['bedSpaceCount']?.toString() ?? "0", Icons.bed, Colors.purple),
-                    _buildStatCard("Active Bookings", _stats['activeBookings']?.toString() ?? "0", Icons.book, Colors.orange),
-                    _buildStatCard("Unread Messages", _stats['unreadMessages']?.toString() ?? "0", Icons.message, Colors.green),
+                    _buildStatCard("Properties", _stats['propertyCount']?.toString() ?? "0", Icons.apartment, AppTheme.primaryColor),
+                    _buildStatCard("Bed Spaces", _stats['bedSpaceCount']?.toString() ?? "0", Icons.bed, AppTheme.primaryColor),
+                    _buildStatCard("Active Bookings", _stats['activeBookings']?.toString() ?? "0", Icons.book, AppTheme.primaryColor),
+                    _buildStatCard("Unread Messages", _stats['unreadMessages']?.toString() ?? "0", Icons.message, AppTheme.primaryColor),
                   ],
                 ),
             const SizedBox(height: 20),
 
             // Quick Actions
-            const Text("Quick Actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text("Quick Actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
             const SizedBox(height: 12),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceEvenly,
               children: [
                 _buildQuickActionButton("Add Property", Icons.add_home, AppTheme.primaryColor, () {
                   // Navigate to add property screen
-                  Navigator.of(context).pushReplacement(MaterialPageRoute(builder: (context) => const AddPropertyScreen()));
+                  Navigator.push(context, MaterialPageRoute(builder: (context) => AddPropertyScreen())).then((_) {
+                    _loadLandlordStats();
+                  });
                 }),
-                _buildQuickActionButton("View Bookings", Icons.calendar_today, Colors.orange, () {
+                _buildQuickActionButton("View Bookings", Icons.calendar_today, AppTheme.primaryColor, () {
                   setState(() {
                     _currentIndex = 2; // Navigate to bookings tab
                   });
                 }),
-                _buildQuickActionButton("Messages", Icons.message, Colors.green, () {
+                _buildQuickActionButton("Messages", Icons.message, AppTheme.primaryColor, () {
                   setState(() {
                     _currentIndex = 3; // Navigate to messages tab
                   });
@@ -307,20 +260,86 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
             const SizedBox(height: 20),
 
             // Recent Activities
-            const Text("Recent Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text("Recent Activity", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
             const SizedBox(height: 12),
             _isLoading
-                ? const Center(child: CircularProgressIndicator())
+                ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
                 : (_stats['activeBookings'] ?? 0) > 0
                 ? _buildRecentActivitiesList()
                 : _buildEmptyStateCard("No recent activities", "Your recent booking requests and messages will appear here.", Icons.history),
             const SizedBox(height: 20),
 
             // Earnings Overview
-            const Text("Earnings Overview", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text("Earnings Overview", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
             const SizedBox(height: 12),
             _buildEarningsCard(),
             const SizedBox(height: 30),
+          ],
+        ),
+      ),
+    );
+  }
+
+  // Welcome card widget
+  Widget _buildWelcomeCard() {
+    final authProvider = Provider.of<AppAuthProvider>(context);
+    final userData = authProvider.userData;
+
+    return Card(
+      elevation: 2,
+      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
+      child: Padding(
+        padding: const EdgeInsets.all(16),
+        child: Column(
+          crossAxisAlignment: CrossAxisAlignment.start,
+          children: [
+            Row(
+              children: [
+                CircleAvatar(
+                  radius: 28,
+                  backgroundColor: AppTheme.primaryColor,
+                  backgroundImage: userData != null && userData['profileImageUrl'] != null ? NetworkImage(userData['profileImageUrl']) : null,
+                  child: userData == null || userData['profileImageUrl'] == null ? const Icon(Icons.person, size: 32, color: Colors.white) : null,
+                ),
+                const SizedBox(width: 16),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text("Welcome, ${userData != null ? userData['displayName'] ?? 'Landlord' : 'Landlord'}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
+                      const SizedBox(height: 4),
+                      Container(
+                        padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                        decoration: BoxDecoration(
+                          color: userData != null && userData['isVerified'] == true ? AppTheme.primaryColor.withOpacity(0.1) : Colors.orange.withOpacity(0.1),
+                          borderRadius: BorderRadius.circular(20),
+                          border: Border.all(color: userData != null && userData['isVerified'] == true ? AppTheme.primaryColor.withOpacity(0.3) : Colors.orange.withOpacity(0.3)),
+                        ),
+                        child: Text(userData != null && userData['isVerified'] == true ? "Verified Landlord" : "Verification Pending", style: TextStyle(fontSize: 12, color: userData != null && userData['isVerified'] == true ? AppTheme.primaryColor : Colors.orange, fontWeight: FontWeight.w500)),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+            if (userData != null && userData['isVerified'] != true) ...[
+              const SizedBox(height: 16),
+              Container(
+                padding: const EdgeInsets.all(12),
+                decoration: BoxDecoration(color: Colors.orange.shade50, borderRadius: BorderRadius.circular(8), border: Border.all(color: Colors.orange.shade200)),
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Row(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [Icon(Icons.info_outline, size: 16, color: Colors.orange.shade800), const SizedBox(width: 8), const Expanded(child: Text("Your account is pending verification", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryColor)))],
+                    ),
+                    const SizedBox(height: 4),
+                    const Text("You can explore the app, but you won't be able to add properties or accept bookings until your account is verified by an administrator.", style: TextStyle(fontSize: 12, color: AppTheme.primaryColor)),
+                  ],
+                ),
+              ),
+            ],
           ],
         ),
       ),
@@ -339,9 +358,9 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
           children: [
             Row(
               children: [
-                Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: Icon(icon, size: 24, color: color)),
+                Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8), border: Border.all(color: color.withOpacity(0.3))), child: Icon(icon, size: 24, color: color)),
                 const Spacer(),
-                Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+                Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
               ],
             ),
             const SizedBox(height: 8),
@@ -362,9 +381,9 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
         child: Column(
           mainAxisSize: MainAxisSize.min,
           children: [
-            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle), child: Icon(icon, color: color, size: 28)),
+            Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: color.withOpacity(0.1), shape: BoxShape.circle, border: Border.all(color: color.withOpacity(0.3))), child: Icon(icon, color: color, size: 28)),
             const SizedBox(height: 8),
-            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500)),
+            Text(label, textAlign: TextAlign.center, style: const TextStyle(fontSize: 13, fontWeight: FontWeight.w500, color: AppTheme.primaryColor)),
           ],
         ),
       ),
@@ -384,15 +403,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
           return ListTile(
             leading: Container(
               padding: const EdgeInsets.all(8),
-              decoration: BoxDecoration(
-                color:
-                    index == 0
-                        ? Colors.blue.withOpacity(0.1)
-                        : index == 1
-                        ? Colors.green.withOpacity(0.1)
-                        : Colors.orange.withOpacity(0.1),
-                shape: BoxShape.circle,
-              ),
+              decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), shape: BoxShape.circle, border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3))),
               child: Icon(
                 index == 0
                     ? Icons.book
@@ -400,12 +411,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                     ? Icons.message
                     : Icons.payment,
                 size: 20,
-                color:
-                    index == 0
-                        ? Colors.blue
-                        : index == 1
-                        ? Colors.green
-                        : Colors.orange,
+                color: AppTheme.primaryColor,
               ),
             ),
             title: Text(
@@ -440,9 +446,9 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
         child: Column(
           mainAxisAlignment: MainAxisAlignment.center,
           children: [
-            Icon(icon, size: 48, color: Colors.grey.shade400),
+            Icon(icon, size: 48, color: AppTheme.primaryColor.withOpacity(0.5)),
             const SizedBox(height: 16),
-            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87)),
+            Text(title, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
             const SizedBox(height: 8),
             Text(subtitle, textAlign: TextAlign.center, style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
           ],
@@ -466,17 +472,17 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                 const Text("Total Earnings", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500)),
                 Container(
                   padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                  decoration: BoxDecoration(color: Colors.green.shade50, borderRadius: BorderRadius.circular(20)),
-                  child: Row(children: [const Icon(Icons.arrow_upward, size: 14, color: Colors.green), const SizedBox(width: 4), Text("10%", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: Colors.green.shade700))]),
+                  decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(20), border: Border.all(color: AppTheme.primaryColor.withOpacity(0.3))),
+                  child: Row(children: [Icon(Icons.arrow_upward, size: 14, color: AppTheme.primaryColor), const SizedBox(width: 4), Text("10%", style: TextStyle(fontSize: 12, fontWeight: FontWeight.w500, color: AppTheme.primaryColor))]),
                 ),
               ],
             ),
             const SizedBox(height: 12),
-            Text("ZMW ${_stats['totalEarnings']?.toStringAsFixed(2) ?? '0.00'}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: Colors.black87)),
+            Text("ZMW ${_stats['totalEarnings']?.toStringAsFixed(2) ?? '0.00'}", style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
             const SizedBox(height: 16),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [_buildEarningsStat("This Month", "ZMW ${(_stats['totalEarnings'] ?? 0) / 2}", Colors.blue), Container(height: 40, width: 1, color: Colors.grey.shade200), _buildEarningsStat("Last Month", "ZMW ${(_stats['totalEarnings'] ?? 0) / 4}", Colors.purple)],
+              children: [_buildEarningsStat("This Month", "ZMW ${(_stats['totalEarnings'] ?? 0) / 2}", AppTheme.primaryColor), Container(height: 40, width: 1, color: Colors.grey.shade200), _buildEarningsStat("Last Month", "ZMW ${(_stats['totalEarnings'] ?? 0) / 4}", AppTheme.primaryColor)],
             ),
             const SizedBox(height: 16),
             SizedBox(
@@ -487,7 +493,7 @@ class _LandlordDashboardState extends State<LandlordDashboard> {
                     _currentIndex = 2; // Navigate to earnings tab
                   });
                 },
-                style: TextButton.styleFrom(foregroundColor: AppTheme.primaryColor),
+                style: TextButton.styleFrom(foregroundColor: AppTheme.primaryColor, side: const BorderSide(color: AppTheme.primaryColor), padding: const EdgeInsets.symmetric(vertical: 12)),
                 child: const Text("View Full Earnings Report"),
               ),
             ),

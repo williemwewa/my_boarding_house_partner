@@ -171,13 +171,13 @@ class _AdminDashboardState extends State<AdminDashboard> {
       appBar: AppBar(
         elevation: 0,
         backgroundColor: Colors.white,
-        title: Text(_currentIndex == 0 ? "Admin Dashboard" : _getTitle(_currentIndex), style: const TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)),
+        title: Text(_currentIndex == 0 ? "Admin Dashboard" : _getTitle(_currentIndex), style: const TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
         centerTitle: true,
         actions: [
           if (_currentIndex == 0) // Only show notifications on dashboard
             IconButton(
               icon: const Icon(Icons.notifications_outlined),
-              color: Colors.black87,
+              color: AppTheme.primaryColor,
               onPressed: () {
                 // Navigate to notifications
               },
@@ -270,7 +270,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 20),
 
             // System Overview
-            const Text("System Overview", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text("System Overview", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
             const SizedBox(height: 12),
 
             // Stats Cards
@@ -298,7 +298,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 24),
 
             // Pending Actions
-            const Text("Pending Actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text("Pending Actions", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
             const SizedBox(height: 12),
 
             // Pending Actions Cards
@@ -335,7 +335,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
             const SizedBox(height: 24),
 
             // System Statistics
-            const Text("System Statistics", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: Colors.black87)),
+            const Text("System Statistics", style: TextStyle(fontSize: 18, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
             const SizedBox(height: 12),
 
             // Statistics Cards
@@ -384,7 +384,7 @@ class _AdminDashboardState extends State<AdminDashboard> {
               children: [
                 Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: Icon(icon, size: 24, color: color)),
                 const Spacer(),
-                Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+                Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
               ],
             ),
             const SizedBox(height: 8),

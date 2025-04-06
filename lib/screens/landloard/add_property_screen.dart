@@ -1,16 +1,22 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:image_picker/image_picker.dart';
-import 'package:firebase_storage/firebase_storage.dart';
-import 'package:uuid/uuid.dart';
+import 'package:http/http.dart' as http;
+import 'package:my_boarding_house_partner/screens/landloard/map_picker_screen.dart';
 import 'package:path/path.dart' as path;
+import 'package:uuid/uuid.dart';
+import 'package:google_maps_flutter/google_maps_flutter.dart';
+import 'package:geocoding/geocoding.dart';
+import 'package:geolocator/geolocator.dart';
 
 import 'package:my_boarding_house_partner/utils/app_theme.dart';
 import 'package:my_boarding_house_partner/widgets/custom_dropdown.dart';
 import 'package:my_boarding_house_partner/models/property_model.dart';
+// Import the map picker screen - update the path based on your project structure
 
 class AddPropertyScreen extends StatefulWidget {
   final Property? property; // If not null, we're editing an existing property
@@ -42,7 +48,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
   List<String> _existingImages = [];
 
   // Amenities
-  final List<String> _allAmenities = ['Wi-Fi', 'Parking', 'Laundry', 'Security', 'Kitchen', 'TV', 'Air Conditioning', 'Heating', 'Study Area', 'Gym'];
+  final List<String> _allAmenities = ['Wi-Fi', 'Parking', 'Laundry', 'Security', 'Kitchen', 'TV', 'Air Conditioning', 'Solar', 'Study Area', 'Gym', 'Washing Machine'];
   List<String> _selectedAmenities = [];
 
   // Rules
@@ -52,6 +58,15 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
   // Location
   double? _latitude;
   double? _longitude;
+  LatLng? _selectedLocation;
+  CameraPosition _initialCameraPosition = CameraPosition(target: LatLng(0, 0), zoom: 15);
+  bool _locationSelected = false;
+
+  // Markers for the map
+  final Set<Marker> _markers = {};
+
+  // API endpoint for image uploads
+  final String _imageUploadApiUrl = 'http://143.198.165.152/api/upload-image';
 
   @override
   void initState() {
@@ -60,6 +75,92 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
     // If we're editing an existing property, populate the form
     if (widget.property != null) {
       _loadPropertyData();
+    } else {
+      // Get current location for new properties
+      _getCurrentLocation();
+    }
+  }
+
+  Future<void> _getCurrentLocation() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    try {
+      // Check location permission
+      LocationPermission permission = await Geolocator.checkPermission();
+      if (permission == LocationPermission.denied) {
+        permission = await Geolocator.requestPermission();
+        if (permission == LocationPermission.denied) {
+          // Permissions are denied, handle accordingly
+          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permissions are denied'), backgroundColor: Colors.red));
+          setState(() {
+            _isLoading = false;
+          });
+          return;
+        }
+      }
+
+      if (permission == LocationPermission.deniedForever) {
+        // Permissions are permanently denied, handle accordingly
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Location permissions are permanently denied, please enable them in settings'), backgroundColor: Colors.red));
+        setState(() {
+          _isLoading = false;
+        });
+        return;
+      }
+
+      // Get current position
+      Position position = await Geolocator.getCurrentPosition(desiredAccuracy: LocationAccuracy.high);
+
+      setState(() {
+        _latitude = position.latitude;
+        _longitude = position.longitude;
+        _selectedLocation = LatLng(position.latitude, position.longitude);
+        _initialCameraPosition = CameraPosition(target: LatLng(position.latitude, position.longitude), zoom: 15);
+
+        // Add marker for the current location
+        _markers.clear();
+        _markers.add(Marker(markerId: const MarkerId('selectedLocation'), position: LatLng(position.latitude, position.longitude), draggable: false, infoWindow: const InfoWindow(title: 'Selected Location')));
+
+        _isLoading = false;
+      });
+
+      // Get address from location
+      _getAddressFromLatLng(position.latitude, position.longitude);
+    } catch (e) {
+      print('Error getting location: $e');
+      setState(() {
+        _isLoading = false;
+        // Default to a generic location if unable to get current location
+        _initialCameraPosition = const CameraPosition(
+          target: LatLng(52.4064, 16.9252), // Default to Poznan, Poland
+          zoom: 15,
+        );
+      });
+    }
+  }
+
+  Future<void> _getAddressFromLatLng(double lat, double lng) async {
+    try {
+      List<Placemark> placemarks = await placemarkFromCoordinates(lat, lng);
+
+      if (placemarks.isNotEmpty) {
+        Placemark placemark = placemarks.first;
+        String street = placemark.street ?? '';
+        String locality = placemark.locality ?? '';
+        String postalCode = placemark.postalCode ?? '';
+        String country = placemark.country ?? '';
+
+        setState(() {
+          _addressController.text = '$street, $locality, $postalCode, $country'.replaceAll(RegExp(r', ,'), ',').replaceAll(RegExp(r',,'), ',').replaceAll(RegExp(r', $'), '');
+          _cityController.text = locality;
+          _zipCodeController.text = postalCode;
+          _locationSelected = true;
+        });
+      }
+    } catch (e) {
+      print('Error getting address from coordinates: $e');
     }
   }
 
@@ -77,6 +178,17 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
       _latitude = property.latitude;
       _longitude = property.longitude;
 
+      if (_latitude != null && _longitude != null) {
+        _selectedLocation = LatLng(_latitude!, _longitude!);
+        _initialCameraPosition = CameraPosition(target: _selectedLocation!, zoom: 15);
+
+        // Add marker for the existing location
+        _markers.clear();
+        _markers.add(Marker(markerId: const MarkerId('selectedLocation'), position: _selectedLocation!, draggable: false, infoWindow: const InfoWindow(title: 'Property Location')));
+
+        _locationSelected = true;
+      }
+
       // Parse city and zip code from address if available
       final addressParts = property.address.split(',');
       if (addressParts.length > 1) {
@@ -90,6 +202,27 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
         }
       }
     });
+  }
+
+  Future<void> _openMapPicker() async {
+    final result = await Navigator.push<LatLng>(context, MaterialPageRoute(builder: (context) => MapPickerScreen(initialLocation: _selectedLocation ?? _initialCameraPosition.target, initialMarkers: _markers)));
+
+    if (result != null) {
+      setState(() {
+        _selectedLocation = result;
+        _latitude = result.latitude;
+        _longitude = result.longitude;
+
+        // Update markers
+        _markers.clear();
+        _markers.add(Marker(markerId: const MarkerId('selectedLocation'), position: result, draggable: false, infoWindow: const InfoWindow(title: 'Selected Location')));
+
+        _locationSelected = true;
+      });
+
+      // Get address from the selected location
+      _getAddressFromLatLng(result.latitude, result.longitude);
+    }
   }
 
   @override
@@ -154,22 +287,66 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
     });
   }
 
+  // Modified method to upload images to API instead of Firebase Storage
   Future<List<String>> _uploadImages() async {
     List<String> imageUrls = [];
 
     // Keep existing images
     imageUrls.addAll(_existingImages);
 
-    // Upload new images
+    // Upload new images using API endpoint
     for (final image in _newImages) {
-      final String fileName = '${const Uuid().v4()}${path.extension(image.path)}';
-      final Reference ref = FirebaseStorage.instance.ref().child('properties').child(fileName);
+      try {
+        User? user = FirebaseAuth.instance.currentUser;
+        if (user == null) continue;
 
-      final UploadTask uploadTask = ref.putFile(image);
-      final TaskSnapshot snapshot = await uploadTask.whenComplete(() => null);
-      final String downloadUrl = await snapshot.ref.getDownloadURL();
+        // Create a unique filename for the image
+        String fileName = 'property_${user.uid}_${DateTime.now().millisecondsSinceEpoch}${path.extension(image.path)}';
 
-      imageUrls.add(downloadUrl);
+        // Create multipart request
+        var request = http.MultipartRequest('POST', Uri.parse(_imageUploadApiUrl));
+
+        // Add authorization headers if required by your API
+        request.headers.addAll({
+          'Authorization': 'Bearer YOUR_API_TOKEN', // Replace with your API token or authentication method
+          'Content-Type': 'multipart/form-data',
+        });
+
+        // Add the file as a multipart file
+        request.files.add(
+          await http.MultipartFile.fromPath(
+            'image', // Field name expected by your API
+            image.path,
+            filename: fileName,
+          ),
+        );
+
+        // Add additional parameters if needed by your API
+        request.fields['user_id'] = user.uid;
+        request.fields['file_type'] = 'property_image';
+        request.fields['property_name'] = _nameController.text.trim();
+
+        // Send the request
+        var response = await request.send();
+
+        // Get response
+        var responseData = await response.stream.toBytes();
+        var responseString = String.fromCharCodes(responseData);
+        var jsonResponse = jsonDecode(responseString);
+
+        // Check if the request was successful
+        if (response.statusCode == 200 || response.statusCode == 201) {
+          // Extract the URL from the response based on the provided format
+          String downloadUrl = jsonResponse['url'];
+          print('Image uploaded successfully: $downloadUrl');
+          imageUrls.add(downloadUrl);
+        } else {
+          print('Failed to upload image. Status code: ${response.statusCode}');
+          print('Response: $responseString');
+        }
+      } catch (e) {
+        print('Error uploading image: $e');
+      }
     }
 
     return imageUrls;
@@ -185,6 +362,11 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
       return;
     }
 
+    if (!_locationSelected || _latitude == null || _longitude == null) {
+      ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Please select a location on the map'), backgroundColor: Colors.red));
+      return;
+    }
+
     setState(() {
       _isSubmitting = true;
     });
@@ -195,7 +377,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
         throw Exception('You must be logged in to add a property');
       }
 
-      // Upload images to Firebase Storage
+      // Upload images to API
       final List<String> imageUrls = await _uploadImages();
 
       // Create or update property in Firestore
@@ -217,10 +399,10 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
         'updatedAt': FieldValue.serverTimestamp(),
       };
 
-      // Add location if available
-      if (_latitude != null && _longitude != null) {
-        propertyData['location'] = GeoPoint(_latitude!, _longitude!);
-      }
+      // Add location
+      propertyData['latitude'] = _latitude as Object;
+      propertyData['longitude'] = _longitude as Object;
+      propertyData['location'] = GeoPoint(_latitude!, _longitude!);
 
       if (widget.property == null) {
         // Create new property
@@ -253,7 +435,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.property == null ? 'Add New Property' : 'Edit Property', style: const TextStyle(color: Colors.black87)), backgroundColor: Colors.white, elevation: 0, iconTheme: const IconThemeData(color: Colors.black87)),
+      appBar: AppBar(title: Text(widget.property == null ? 'Add New Property' : 'Edit Property', style: const TextStyle(color: AppTheme.primaryColor)), backgroundColor: Colors.white, elevation: 0, iconTheme: const IconThemeData(color: AppTheme.primaryColor)),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -322,50 +504,69 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
                       _buildSectionHeader('Location'),
                       const SizedBox(height: 16),
 
-                      // Address
+                      // Map location picker
+                      Container(
+                        height: 200,
+                        decoration: BoxDecoration(border: Border.all(color: Colors.grey), borderRadius: BorderRadius.circular(8)),
+                        child:
+                            _selectedLocation != null
+                                ? ClipRRect(
+                                  borderRadius: BorderRadius.circular(8),
+                                  child: Stack(
+                                    children: [
+                                      // Static map image instead of GoogleMap
+                                      Image.network(
+                                        'https://maps.googleapis.com/maps/api/staticmap?center=${_selectedLocation!.latitude},${_selectedLocation!.longitude}&zoom=15&size=800x400&maptype=roadmap&markers=color:red%7C${_selectedLocation!.latitude},${_selectedLocation!.longitude}&key=YOUR_API_KEY', // Replace with your Google Maps API key
+                                        width: double.infinity,
+                                        height: 200,
+                                        fit: BoxFit.cover,
+                                        errorBuilder: (context, error, stackTrace) {
+                                          return Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.location_on, size: 48, color: AppTheme.primaryColor), Text('Location selected', style: TextStyle(color: Colors.grey[700]))]));
+                                        },
+                                      ),
+                                      // Overlay to indicate the image is clickable
+                                      Positioned.fill(child: Material(color: Colors.transparent, child: InkWell(onTap: _openMapPicker, borderRadius: BorderRadius.circular(8)))),
+                                    ],
+                                  ),
+                                )
+                                : Center(child: Column(mainAxisAlignment: MainAxisAlignment.center, children: [Icon(Icons.map, size: 48, color: Colors.grey[400]), const SizedBox(height: 8), Text('No location selected', style: TextStyle(color: Colors.grey[600]))])),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Map picker button
+                      SizedBox(
+                        width: double.infinity,
+                        child: ElevatedButton.icon(
+                          onPressed: _openMapPicker,
+                          icon: const Icon(Icons.map),
+                          label: const Text('Pick Location on Map'),
+                          style: ElevatedButton.styleFrom(foregroundColor: Colors.white, backgroundColor: AppTheme.primaryColor, minimumSize: const Size(double.infinity, 48), shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                        ),
+                      ),
+                      const SizedBox(height: 16),
+
+                      // Address display (read-only)
                       TextFormField(
                         controller: _addressController,
-                        decoration: const InputDecoration(labelText: 'Address', hintText: 'Full street address', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(labelText: 'Address', border: OutlineInputBorder(), filled: true, fillColor: Color(0xFFF5F5F5)),
+                        readOnly: true,
+                        enabled: false,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
-                            return 'Please enter an address';
+                            return 'Please select a location on the map';
                           }
                           return null;
                         },
                       ),
                       const SizedBox(height: 16),
 
-                      // City and Zip code
+                      // City and Zip code (read-only)
                       Row(
                         children: [
-                          Expanded(
-                            flex: 2,
-                            child: TextFormField(
-                              controller: _cityController,
-                              decoration: const InputDecoration(labelText: 'City', border: OutlineInputBorder()),
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter a city';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
+                          Expanded(flex: 2, child: TextFormField(controller: _cityController, decoration: const InputDecoration(labelText: 'City', border: OutlineInputBorder(), filled: true, fillColor: Color(0xFFF5F5F5)), readOnly: true, enabled: false)),
                           const SizedBox(width: 16),
-                          Expanded(flex: 1, child: TextFormField(controller: _zipCodeController, decoration: const InputDecoration(labelText: 'Zip Code', border: OutlineInputBorder()), keyboardType: TextInputType.number)),
+                          Expanded(flex: 1, child: TextFormField(controller: _zipCodeController, decoration: const InputDecoration(labelText: 'Zip Code', border: OutlineInputBorder(), filled: true, fillColor: Color(0xFFF5F5F5)), readOnly: true, enabled: false)),
                         ],
-                      ),
-                      const SizedBox(height: 16),
-
-                      // Map button (will be implemented later)
-                      OutlinedButton.icon(
-                        onPressed: () {
-                          // TODO: Implement map location picker
-                          ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Map location picker will be available soon')));
-                        },
-                        icon: const Icon(Icons.map),
-                        label: const Text('Pick Location on Map'),
-                        style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryColor, minimumSize: const Size(double.infinity, 48)),
                       ),
                       const SizedBox(height: 24),
 
@@ -399,7 +600,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
                                 backgroundColor: Colors.grey.shade200,
                                 selectedColor: AppTheme.primaryColor.withOpacity(0.2),
                                 checkmarkColor: AppTheme.primaryColor,
-                                labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : Colors.black87),
+                                labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : AppTheme.primaryColor),
                               );
                             }).toList(),
                       ),
@@ -425,7 +626,7 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
                                 backgroundColor: Colors.grey.shade200,
                                 selectedColor: AppTheme.primaryColor.withOpacity(0.2),
                                 checkmarkColor: AppTheme.primaryColor,
-                                labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : Colors.black87),
+                                labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : AppTheme.primaryColor),
                               );
                             }).toList(),
                       ),
@@ -437,8 +638,18 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
                         height: 50,
                         child: ElevatedButton(
                           onPressed: _isSubmitting ? null : _saveProperty,
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
-                          child: _isSubmitting ? const CircularProgressIndicator(color: Colors.white) : Text(widget.property == null ? 'Add Property' : 'Update Property', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                          child:
+                              _isSubmitting
+                                  ? const CircularProgressIndicator(color: Colors.white)
+                                  : Text(
+                                    widget.property == null ? 'Add Property' : 'Update Property',
+                                    style: const TextStyle(
+                                      fontSize: 16,
+                                      fontWeight: FontWeight.bold,
+                                      color: Colors.white, // Make text white
+                                    ),
+                                  ),
                         ),
                       ),
                       const SizedBox(height: 24),
@@ -450,9 +661,12 @@ class _AddPropertyScreenState extends State<AddPropertyScreen> {
                         child: Column(
                           crossAxisAlignment: CrossAxisAlignment.start,
                           children: [
-                            Row(children: [Icon(Icons.info_outline, color: Colors.orange.shade800, size: 20), const SizedBox(width: 8), const Text('Verification Required', style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14))]),
+                            Row(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [Icon(Icons.info_outline, size: 16, color: Colors.orange.shade800), const SizedBox(width: 8), const Expanded(child: Text("Verification Required", style: TextStyle(fontWeight: FontWeight.bold, fontSize: 14, color: AppTheme.primaryColor)))],
+                            ),
                             const SizedBox(height: 8),
-                            const Text('All properties must be verified by an administrator before they become visible to students. This usually takes 1-2 business days.', style: TextStyle(fontSize: 12)),
+                            const Text("All properties must be verified by an administrator before they become visible to students. This usually takes 1-2 business days.", style: TextStyle(fontSize: 12)),
                           ],
                         ),
                       ),

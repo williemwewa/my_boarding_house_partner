@@ -199,7 +199,7 @@ class _LandlordMessagesScreenState extends State<LandlordMessagesScreen> {
                     Row(
                       mainAxisAlignment: MainAxisAlignment.spaceBetween,
                       children: [
-                        Expanded(child: Text(studentName, style: TextStyle(fontWeight: isUnread ? FontWeight.bold : FontWeight.w500, fontSize: 16, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        Expanded(child: Text(studentName, style: TextStyle(fontWeight: isUnread ? FontWeight.bold : FontWeight.w500, fontSize: 16, color: AppTheme.primaryColor), maxLines: 1, overflow: TextOverflow.ellipsis)),
                         Text(_formatTime(conversation.lastMessageAt), style: TextStyle(fontSize: 12, color: isUnread ? AppTheme.primaryColor : Colors.grey.shade600, fontWeight: isUnread ? FontWeight.bold : FontWeight.normal)),
                       ],
                     ),
@@ -220,7 +220,7 @@ class _LandlordMessagesScreenState extends State<LandlordMessagesScreen> {
                             child: const Text('You', style: TextStyle(fontSize: 10, color: AppTheme.primaryColor, fontWeight: FontWeight.bold)),
                           ),
 
-                        Expanded(child: Text(conversation.lastMessage, style: TextStyle(fontSize: 14, color: isUnread ? Colors.black87 : Colors.grey.shade600, fontWeight: isUnread ? FontWeight.w500 : FontWeight.normal), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                        Expanded(child: Text(conversation.lastMessage, style: TextStyle(fontSize: 14, color: isUnread ? AppTheme.primaryColor : Colors.grey.shade600, fontWeight: isUnread ? FontWeight.w500 : FontWeight.normal), maxLines: 1, overflow: TextOverflow.ellipsis)),
                       ],
                     ),
                   ],

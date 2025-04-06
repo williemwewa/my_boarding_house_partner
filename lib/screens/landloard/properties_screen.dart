@@ -7,8 +7,6 @@ import 'package:provider/provider.dart';
 import 'package:intl/intl.dart';
 
 import 'package:my_boarding_house_partner/providers/auth_provider.dart';
-// import 'package:my_boarding_house_partner/screens/landlord/add_property_screen.dart';
-// import 'package:my_boarding_house_partner/screens/landlord/property_details_screen.dart';
 import 'package:my_boarding_house_partner/utils/app_theme.dart';
 import 'package:my_boarding_house_partner/widgets/empty_state_widget.dart';
 import 'package:my_boarding_house_partner/models/property_model.dart';
@@ -29,7 +27,10 @@ class _PropertiesScreenState extends State<PropertiesScreen> {
   @override
   void initState() {
     super.initState();
-    _loadProperties();
+    // Small delay to ensure Firebase Auth is initialized properly
+    Future.delayed(Duration.zero, () {
+      _loadProperties();
+    });
   }
 
   Future<void> _loadProperties() async {
@@ -39,15 +40,26 @@ class _PropertiesScreenState extends State<PropertiesScreen> {
 
     try {
       final user = FirebaseAuth.instance.currentUser;
-      if (user == null) return;
+      if (user == null) {
+        ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('You need to be logged in to view properties'), backgroundColor: Colors.red));
+        return;
+      }
+
+      // First, check if any properties exist for this user at all
+      final checkQuery = await FirebaseFirestore.instance.collection('Properties').where('landlordId', isEqualTo: user.uid).limit(1).get();
 
       // Create a query for this landlord's properties
       Query query = FirebaseFirestore.instance.collection('Properties').where('landlordId', isEqualTo: user.uid);
 
       // Apply status filter if not 'All'
       if (_filterStatus != 'All') {
-        bool isActive = _filterStatus == 'Active';
-        query = query.where('isActive', isEqualTo: isActive);
+        if (_filterStatus == 'Active') {
+          query = query.where('isActive', isEqualTo: true);
+        } else if (_filterStatus == 'Inactive') {
+          query = query.where('isActive', isEqualTo: false);
+        } else if (_filterStatus == 'Pending') {
+          query = query.where('isVerified', isEqualTo: false);
+        }
       }
 
       // Apply verification filter if needed
@@ -60,9 +72,18 @@ class _PropertiesScreenState extends State<PropertiesScreen> {
 
       // Parse the results
       _properties =
-          snapshot.docs.map((doc) {
-            return Property.fromFirestore(doc);
-          }).toList();
+          snapshot.docs
+              .map((doc) {
+                try {
+                  return Property.fromFirestore(doc);
+                } catch (e) {
+                  // Return null for properties that fail to parse
+                  return null;
+                }
+              })
+              .where((property) => property != null) // Filter out null properties
+              .cast<Property>() // Cast to non-nullable Property
+              .toList();
 
       // Sort properties: Active first, then by date (newest first)
       _properties.sort((a, b) {
@@ -74,7 +95,6 @@ class _PropertiesScreenState extends State<PropertiesScreen> {
         return b.createdAt.compareTo(a.createdAt);
       });
     } catch (e) {
-      print('Error loading properties: $e');
       // Show error message to user
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text('Failed to load properties: ${e.toString()}'), backgroundColor: Colors.red));
     } finally {
@@ -190,7 +210,7 @@ class _PropertiesScreenState extends State<PropertiesScreen> {
         backgroundColor: Colors.grey.shade200,
         selectedColor: AppTheme.primaryColor.withOpacity(0.2),
         checkmarkColor: AppTheme.primaryColor,
-        labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+        labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : AppTheme.primaryColor, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
       ),
     );
   }

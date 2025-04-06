@@ -5,6 +5,8 @@ import 'package:intl/intl.dart';
 
 import 'package:my_boarding_house_partner/models/property_model.dart';
 import 'package:my_boarding_house_partner/screens/landloard/add_bed_space_screen.dart';
+import 'package:my_boarding_house_partner/screens/landloard/edit_room_screen.dart';
+import 'package:my_boarding_house_partner/screens/landloard/edit_bed_space_screen.dart';
 
 import 'package:my_boarding_house_partner/utils/app_theme.dart';
 import 'package:my_boarding_house_partner/widgets/empty_state_widget.dart';
@@ -12,8 +14,14 @@ import 'package:my_boarding_house_partner/widgets/empty_state_widget.dart';
 class RoomDetailsScreen extends StatefulWidget {
   final Property property;
   final Room room;
+  final int initialTabIndex;
 
-  const RoomDetailsScreen({Key? key, required this.property, required this.room}) : super(key: key);
+  const RoomDetailsScreen({
+    Key? key,
+    required this.property,
+    required this.room,
+    this.initialTabIndex = 0, // Default to details tab, but can be overridden
+  }) : super(key: key);
 
   @override
   _RoomDetailsScreenState createState() => _RoomDetailsScreenState();
@@ -27,7 +35,11 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
   @override
   void initState() {
     super.initState();
-    _tabController = TabController(length: 2, vsync: this);
+    _tabController = TabController(
+      length: 2,
+      vsync: this,
+      initialIndex: widget.initialTabIndex, // Use the provided initial tab index
+    );
     _loadBedSpaces();
   }
 
@@ -76,24 +88,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
   }
 
   void _showEditRoomDialog() {
-    // Navigate to edit room screen or show edit dialog
-    showDialog(
-      context: context,
-      builder: (BuildContext context) {
-        return AlertDialog(
-          title: const Text('Edit Room'),
-          content: const Text('Room editing functionality will be implemented in a future update.'),
-          actions: [
-            TextButton(
-              onPressed: () {
-                Navigator.of(context).pop();
-              },
-              child: const Text('OK'),
-            ),
-          ],
-        );
-      },
-    );
+    Navigator.push(context, MaterialPageRoute(builder: (context) => EditRoomScreen(property: widget.property, room: widget.room))).then((result) {
+      if (result == 'deleted') {
+        // Room was deleted, go back to property details
+        Navigator.pop(context);
+      } else if (result == true) {
+        // Room was updated, refresh data
+        // This should trigger a rebuild with the latest data from Firestore
+        setState(() {});
+      }
+    });
   }
 
   Future<void> _toggleBedSpaceStatus(BedSpace bedSpace) async {
@@ -123,15 +127,15 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: Text(widget.room.name, style: const TextStyle(color: Colors.black87)),
+        title: Text(widget.room.name, style: const TextStyle(color: AppTheme.primaryColor)),
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: const IconThemeData(color: AppTheme.primaryColor),
         actions: [IconButton(icon: const Icon(Icons.edit), onPressed: _showEditRoomDialog)],
         bottom: TabBar(controller: _tabController, tabs: const [Tab(text: 'Details'), Tab(text: 'Bed Spaces')], indicatorColor: AppTheme.primaryColor, labelColor: AppTheme.primaryColor, unselectedLabelColor: Colors.grey),
       ),
       body: TabBarView(controller: _tabController, children: [_buildDetailsTab(), _buildBedSpacesTab()]),
-      floatingActionButton: _tabController.index == 1 ? FloatingActionButton(backgroundColor: AppTheme.primaryColor, child: const Icon(Icons.add), onPressed: _navigateToAddBedSpace) : null,
+      floatingActionButton: _tabController.index == 1 ? FloatingActionButton(backgroundColor: AppTheme.primaryColor, child: const Icon(Icons.add), onPressed: _navigateToAddBedSpace, tooltip: 'Add Bed Space') : null,
     );
   }
 
@@ -152,8 +156,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
             children: [
               Container(
                 padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: Colors.blue.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: Colors.blue.withOpacity(0.5))),
-                child: Text(widget.room.roomType.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: Colors.blue)),
+                decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: AppTheme.primaryColor.withOpacity(0.5))),
+                child: Text(widget.room.roomType.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
               ),
             ],
           ),
@@ -201,7 +205,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
           elevation: 2,
           child: Padding(
             padding: const EdgeInsets.all(16),
-            child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_buildStatusCount('Available', availableCount, Colors.green), _buildStatusCount('Booked', bookedCount, Colors.blue), _buildStatusCount('Maintenance', maintenanceCount, Colors.orange)]),
+            child: Row(mainAxisAlignment: MainAxisAlignment.spaceAround, children: [_buildStatusCount('Available', availableCount, AppTheme.primaryColor), _buildStatusCount('Booked', bookedCount, Colors.blue), _buildStatusCount('Maintenance', maintenanceCount, Colors.orange)]),
           ),
         ),
 
@@ -209,7 +213,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
         Expanded(
           child:
               _isLoading
-                  ? const Center(child: CircularProgressIndicator())
+                  ? const Center(child: CircularProgressIndicator(color: AppTheme.primaryColor))
                   : _bedSpaces.isEmpty
                   ? EmptyStateWidget(icon: Icons.bed, title: 'No Bed Spaces', message: 'This room doesn\'t have any bed spaces yet. Tap the button below to add your first bed space.', buttonText: 'Add Bed Space', onButtonPressed: _navigateToAddBedSpace)
                   : ListView.builder(
@@ -258,7 +262,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
                   children: [
                     Text('Available Bed Spaces', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
                     const SizedBox(height: 4),
-                    Text('${_bedSpaces.where((b) => b.status == 'available').length} / ${_bedSpaces.length}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.green)),
+                    Text('${_bedSpaces.where((b) => b.status == 'available').length} / ${_bedSpaces.length}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
                   ],
                 ),
                 OutlinedButton.icon(
@@ -267,7 +271,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
                   },
                   icon: const Icon(Icons.bed),
                   label: const Text('Manage Bed Spaces'),
-                  style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryColor),
+                  style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryColor, side: const BorderSide(color: AppTheme.primaryColor)),
                 ),
               ],
             ),
@@ -296,7 +300,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
           children: [
             Text(widget.property.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)),
             const SizedBox(height: 8),
-            Row(children: [const Icon(Icons.location_on, size: 16, color: Colors.grey), const SizedBox(width: 4), Expanded(child: Text(widget.property.address, style: TextStyle(fontSize: 14, color: Colors.grey.shade700)))]),
+            Row(children: [const Icon(Icons.location_on, size: 16, color: AppTheme.primaryColor), const SizedBox(width: 4), Expanded(child: Text(widget.property.address, style: TextStyle(fontSize: 14, color: Colors.grey.shade700)))]),
             const Divider(height: 24),
             Row(
               mainAxisAlignment: MainAxisAlignment.spaceBetween,
@@ -323,7 +327,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
     Color statusColor;
     switch (bedSpace.status) {
       case 'available':
-        statusColor = Colors.green;
+        statusColor = AppTheme.primaryColor;
         break;
       case 'booked':
         statusColor = Colors.blue;
@@ -401,10 +405,16 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
                       child: OutlinedButton.icon(
                         onPressed: () {
                           // Navigate to edit bed space
+                          Navigator.push(context, MaterialPageRoute(builder: (context) => EditBedSpaceScreen(propertyId: widget.property.id, roomId: widget.room.id, bedSpace: bedSpace, propertyName: widget.property.name, roomName: widget.room.name))).then((result) {
+                            if (result == 'deleted' || result == true) {
+                              // Bed space was deleted or updated, refresh data
+                              _loadBedSpaces();
+                            }
+                          });
                         },
                         icon: const Icon(Icons.edit),
                         label: const Text('Edit'),
-                        style: OutlinedButton.styleFrom(foregroundColor: Colors.blue, padding: const EdgeInsets.symmetric(vertical: 8)),
+                        style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryColor, side: const BorderSide(color: AppTheme.primaryColor), padding: const EdgeInsets.symmetric(vertical: 8)),
                       ),
                     ),
                     const SizedBox(width: 8),
@@ -413,7 +423,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
                         onPressed: bedSpace.status != 'booked' ? () => _toggleBedSpaceStatus(bedSpace) : null,
                         icon: Icon(bedSpace.status == 'available' ? Icons.construction : Icons.check_circle),
                         label: Text(bedSpace.status == 'available' ? 'Maintenance' : 'Available'),
-                        style: OutlinedButton.styleFrom(foregroundColor: bedSpace.status == 'available' ? Colors.orange : Colors.green, padding: const EdgeInsets.symmetric(vertical: 8)),
+                        style: OutlinedButton.styleFrom(foregroundColor: bedSpace.status == 'available' ? Colors.orange : AppTheme.primaryColor, side: BorderSide(color: bedSpace.status == 'available' ? Colors.orange : AppTheme.primaryColor), padding: const EdgeInsets.symmetric(vertical: 8)),
                       ),
                     ),
                   ],

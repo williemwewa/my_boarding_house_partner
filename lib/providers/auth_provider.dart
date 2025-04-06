@@ -108,9 +108,9 @@ class AppAuthProvider with ChangeNotifier {
 
   Future<bool> checkIfNewUser() async {
     try {
-      DocumentSnapshot userDoc = await FirebaseFirestore.instance.collection('Users').doc(_user!.uid).get();
+      QuerySnapshot querySnapshot = await FirebaseFirestore.instance.collection('Users').where('userId', isEqualTo: _user!.uid).limit(1).get();
 
-      return !userDoc.exists;
+      return querySnapshot.docs.isEmpty;
     } catch (e) {
       _errorMessage = e.toString();
       notifyListeners();

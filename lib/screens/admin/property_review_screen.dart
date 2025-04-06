@@ -213,10 +213,10 @@ class _PropertyReviewScreenState extends State<PropertyReviewScreen> with Single
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('Property Review', style: TextStyle(color: Colors.black87)),
+        title: const Text('Property Review', style: TextStyle(color: AppTheme.primaryColor)),
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: const IconThemeData(color: AppTheme.primaryColor),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {
@@ -630,7 +630,7 @@ class _PropertyReviewScreenState extends State<PropertyReviewScreen> with Single
   Widget _buildBottomButtons() {
     return Container(
       padding: const EdgeInsets.all(16),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]),
+      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.05), blurRadius: 10, offset: const Offset(0, -5))]),
       child: Row(
         children: [
           Expanded(

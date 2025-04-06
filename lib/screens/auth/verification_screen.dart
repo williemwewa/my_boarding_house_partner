@@ -3,6 +3,7 @@ import 'dart:async';
 import 'package:flutter/material.dart';
 import 'package:firebase_auth/firebase_auth.dart';
 import 'package:my_boarding_house_partner/screens/landloard/landlord_dashboard.dart';
+import 'package:my_boarding_house_partner/utils/app_theme.dart';
 import 'package:pin_code_fields/pin_code_fields.dart';
 import 'package:provider/provider.dart';
 
@@ -114,6 +115,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
         if (!mounted) return;
 
         bool isNewUser = await authProvider.checkIfNewUser();
+        print('Is a new user $isNewUser');
 
         if (isNewUser) {
           _showSuccessSnackBar('Successfully verified! Please complete your profile.');
@@ -259,7 +261,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(elevation: 0, backgroundColor: Colors.white, iconTheme: const IconThemeData(color: Colors.black87), centerTitle: true),
+        appBar: AppBar(elevation: 0, backgroundColor: Colors.white, iconTheme: const IconThemeData(color: AppTheme.primaryColor), centerTitle: true),
         body: SafeArea(
           child: SingleChildScrollView(
             child: Padding(
@@ -268,23 +270,23 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Progress indicator
-                  LinearProgressIndicator(value: 0.75, backgroundColor: Colors.grey.shade200, valueColor: const AlwaysStoppedAnimation<Color>(Colors.black)),
+                  LinearProgressIndicator(value: 0.75, backgroundColor: Colors.grey.shade200, valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor)),
                   const SizedBox(height: 24),
 
                   // Header
-                  const Text("Verification Code", style: TextStyle(fontSize: 28.0, color: Colors.black87, fontWeight: FontWeight.bold, height: 1.2)),
+                  const Text("Verification Code", style: TextStyle(fontSize: 28.0, color: AppTheme.primaryColor, fontWeight: FontWeight.bold, height: 1.2)),
                   const SizedBox(height: 12),
                   RichText(
                     text: TextSpan(
                       style: TextStyle(fontSize: 16.0, color: Colors.grey.shade700, height: 1.5),
-                      children: [const TextSpan(text: "Enter the 6-digit code sent to "), TextSpan(text: _formatPhoneNumber(widget.phoneNumber), style: const TextStyle(fontWeight: FontWeight.bold, color: Colors.black87))],
+                      children: [const TextSpan(text: "Enter the 6-digit code sent to "), TextSpan(text: _formatPhoneNumber(widget.phoneNumber), style: const TextStyle(fontWeight: FontWeight.bold, color: AppTheme.primaryColor))],
                     ),
                   ),
                   const SizedBox(height: 32),
 
                   // OTP input
                   Container(
-                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, spreadRadius: 0)]),
+                    decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.05), blurRadius: 10, spreadRadius: 0)]),
                     padding: const EdgeInsets.all(16),
                     child: PinCodeTextField(
                       appContext: context,
@@ -325,7 +327,7 @@ class _OTPVerificationScreenState extends State<OTPVerificationScreen> {
                     height: 56,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _verifyOTP,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
                       child: _isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white), strokeWidth: 2.5)) : const Text("Verify", style: TextStyle(fontSize: 18.0, color: Colors.white, fontWeight: FontWeight.w600)),
                     ),
                   ),

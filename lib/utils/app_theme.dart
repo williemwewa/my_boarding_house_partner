@@ -1,12 +1,15 @@
 import 'package:flutter/material.dart';
 
+// API endpoint for image uploads
+final String _imageUploadApiUrl = 'http://143.198.165.152/api/upload-image';
+
 class AppTheme {
   // Colors from the screenshots
   static const Color primaryColor = Color(0xFF1F2B7E);
   static const Color primaryColorLight = Color(0xFF3E4DA0);
   static const Color accentColor = Color(0xFF2196F3);
   static const Color backgroundColor = Colors.white;
-  static const Color textColor = Colors.black87;
+  static const Color textColor = AppTheme.primaryColor;
   static const Color secondaryTextColor = Color(0xFF757575);
   static const Color dividerColor = Color(0xFFE0E0E0);
   static const Color errorColor = Color(0xFFB00020);
@@ -26,7 +29,7 @@ class AppTheme {
   static const TextStyle cardSubtitleStyle = TextStyle(fontSize: 14.0, color: secondaryTextColor);
 
   // Button styles
-  static final ButtonStyle primaryButtonStyle = ElevatedButton.styleFrom(backgroundColor: Colors.black, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0, padding: const EdgeInsets.symmetric(vertical: 16));
+  static final ButtonStyle primaryButtonStyle = ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0, padding: const EdgeInsets.symmetric(vertical: 16));
 
   static final ButtonStyle secondaryButtonStyle = ElevatedButton.styleFrom(
     backgroundColor: Colors.white,

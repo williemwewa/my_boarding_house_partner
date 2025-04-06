@@ -266,7 +266,7 @@ class _LandlordBookingsScreenState extends State<LandlordBookingsScreen> with Si
         backgroundColor: Colors.grey.shade200,
         selectedColor: AppTheme.primaryColor.withOpacity(0.2),
         checkmarkColor: AppTheme.primaryColor,
-        labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : Colors.black87, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+        labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : AppTheme.primaryColor, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
       ),
     );
   }

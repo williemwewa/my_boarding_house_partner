@@ -138,7 +138,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(elevation: 0, backgroundColor: Colors.white, iconTheme: const IconThemeData(color: Colors.black87), centerTitle: true),
+        appBar: AppBar(elevation: 0, backgroundColor: Colors.white, iconTheme: const IconThemeData(color: AppTheme.primaryColor), centerTitle: true),
         body: SafeArea(
           child: SingleChildScrollView(
             child: Padding(
@@ -147,11 +147,11 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
                   // Progress indicator
-                  LinearProgressIndicator(value: 0.5, backgroundColor: Colors.grey.shade200, valueColor: const AlwaysStoppedAnimation<Color>(Colors.black)),
+                  LinearProgressIndicator(value: 0.5, backgroundColor: Colors.grey.shade200, valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor)),
                   const SizedBox(height: 24),
 
                   // Header
-                  const Text("Partner Login", style: TextStyle(fontSize: 28.0, color: Colors.black87, fontWeight: FontWeight.bold, height: 1.2)),
+                  const Text("Partner Login", style: TextStyle(fontSize: 28.0, color: AppTheme.primaryColor, fontWeight: FontWeight.bold, height: 1.2)),
                   const SizedBox(height: 12),
                   Text("Please enter your phone number to sign in to your landlord or admin account", style: TextStyle(fontSize: 16.0, color: Colors.grey.shade700)),
                   const SizedBox(height: 32),
@@ -160,7 +160,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                   Form(
                     key: _formKey,
                     child: Container(
-                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 10, spreadRadius: 0)]),
+                      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12), boxShadow: [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.05), blurRadius: 10, spreadRadius: 0)]),
                       child: Padding(
                         padding: const EdgeInsets.all(2.0),
                         child: IntlPhoneField(
@@ -200,7 +200,7 @@ class _PhoneLoginScreenState extends State<PhoneLoginScreen> {
                     height: 56,
                     child: ElevatedButton(
                       onPressed: _isLoading ? null : _onContinuePressed,
-                      style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+                      style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
                       child: _isLoading ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white), strokeWidth: 2.5)) : const Text("Continue", style: TextStyle(fontSize: 18.0, color: Colors.white, fontWeight: FontWeight.w600)),
                     ),
                   ),

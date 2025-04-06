@@ -21,7 +21,7 @@ class SelectDropdown extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label.isNotEmpty) ...[
-          Row(children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)), if (isRequired) const Text(' *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red))]),
+          Row(children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)), if (isRequired) const Text(' *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red))]),
           const SizedBox(height: 8),
         ],
         Container(
@@ -33,7 +33,7 @@ class SelectDropdown extends StatelessWidget {
                 value: value,
                 isExpanded: true,
                 icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
-                style: const TextStyle(fontSize: 16, color: Colors.black87),
+                style: const TextStyle(fontSize: 16, color: AppTheme.primaryColor),
                 onChanged: onChanged,
                 items:
                     items.map<DropdownMenuItem<String>>((String item) {
@@ -91,7 +91,7 @@ class LabeledTextField extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label.isNotEmpty) ...[
-          Row(children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)), if (isRequired) const Text(' *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red))]),
+          Row(children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)), if (isRequired) const Text(' *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.red))]),
           const SizedBox(height: 8),
         ],
         TextFormField(
@@ -146,7 +146,7 @@ class StatCard extends StatelessWidget {
               children: [
                 Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: color.withOpacity(0.1), borderRadius: BorderRadius.circular(8)), child: Icon(icon, size: 24, color: color)),
                 const Spacer(),
-                Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: Colors.black87)),
+                Text(value, style: const TextStyle(fontSize: 22, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
               ],
             ),
             const SizedBox(height: 8),
@@ -266,7 +266,7 @@ class LoadingOverlay extends StatelessWidget {
   @override
   Widget build(BuildContext context) {
     return Container(
-      color: Colors.black.withOpacity(0.5),
+      color: AppTheme.primaryColor.withOpacity(0.5),
       child: Center(
         child: Card(
           shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),

@@ -18,7 +18,7 @@ class CustomDropdown extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label.isNotEmpty) ...[
-          Row(children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)), if (isRequired) const Text(' *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.red))]),
+          Row(children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)), if (isRequired) const Text(' *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.red))]),
           const SizedBox(height: 8),
         ],
         Container(
@@ -35,7 +35,7 @@ class CustomDropdown extends StatelessWidget {
                     return DropdownMenuItem<String>(value: item, child: Text(item));
                   }).toList(),
               onChanged: isEnabled ? onChanged : null,
-              style: const TextStyle(color: Colors.black87, fontSize: 16),
+              style: const TextStyle(color: AppTheme.primaryColor, fontSize: 16),
               dropdownColor: Colors.white,
             ),
           ),
@@ -64,7 +64,7 @@ class FormDropdown extends StatelessWidget {
       crossAxisAlignment: CrossAxisAlignment.start,
       children: [
         if (label.isNotEmpty) ...[
-          Row(children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)), if (isRequired) const Text(' *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.red))]),
+          Row(children: [Text(label, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)), if (isRequired) const Text(' *', style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.red))]),
           const SizedBox(height: 8),
         ],
         DropdownButtonFormField<String>(
@@ -85,7 +85,7 @@ class FormDropdown extends StatelessWidget {
           onChanged: isEnabled ? onChanged : null,
           validator: validator,
           icon: const Icon(Icons.arrow_drop_down, color: AppTheme.primaryColor),
-          style: const TextStyle(color: Colors.black87, fontSize: 16),
+          style: const TextStyle(color: AppTheme.primaryColor, fontSize: 16),
           dropdownColor: Colors.white,
         ),
       ],

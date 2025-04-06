@@ -31,11 +31,11 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
 
   File? _profileImage;
   bool _isLoading = false;
-  String _selectedRole = 'landlord'; // Default to landlord for the partner app
+  String _selectedRole = 'landlord'; // Always set to landlord
   String _selectedGender = 'Male';
 
   // API endpoint for image uploads
-  final String _imageUploadApiUrl = 'http://143.198.165.152/api/upload';
+  final String _imageUploadApiUrl = 'http://143.198.165.152/api/upload-image';
 
   @override
   void initState() {
@@ -93,10 +93,6 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
 
               if (userData['gender'] != null) {
                 _selectedGender = userData['gender'];
-              }
-
-              if (userData['role'] != null) {
-                _selectedRole = userData['role'];
               }
             });
           } else if (user.displayName != null && mounted) {
@@ -182,7 +178,7 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
                   onPressed: () {
                     Navigator.pop(context);
                   },
-                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, foregroundColor: Colors.black87, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 12)),
+                  style: ElevatedButton.styleFrom(backgroundColor: Colors.grey.shade200, foregroundColor: AppTheme.primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(10)), padding: const EdgeInsets.symmetric(vertical: 12)),
                   child: const Text("Cancel"),
                 ),
               ),
@@ -285,26 +281,25 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
       // Update user display name
       await user.updateDisplayName(_displayNameController.text.trim());
 
-      // Update user email if provided
-      // if (_emailController.text.isNotEmpty && _emailController.text != user.email) {
-      //   await user.updateEmail(_emailController.text.trim());
-      // }
-
       // Update user profile photo URL if available
       if (profileImageUrl != null && profileImageUrl.isNotEmpty) {
         await user.updatePhotoURL(profileImageUrl);
       }
 
+      // Get the user's email from Firebase Auth
+      String userEmail = user.email ?? "";
+
       // Save additional user data to Firestore
       await FirebaseFirestore.instance.collection('Users').doc(user.uid).set({
         'displayName': _displayNameController.text.trim(),
         'nrcNumber': _nrcNumberController.text.trim(),
-        'email': _emailController.text.trim(),
+        'email': userEmail,
         'businessName': _businessNameController.text.trim(),
         'gender': _selectedGender,
         'phoneNumber': user.phoneNumber,
         'profileImageUrl': profileImageUrl ?? user.photoURL,
-        'role': _selectedRole,
+        'role': _selectedRole, // Always 'landlord'
+        'userId': user.uid,
         'isVerified': false, // Admin needs to verify landlord accounts
         'createdAt': FieldValue.serverTimestamp(),
         'updatedAt': FieldValue.serverTimestamp(),
@@ -314,18 +309,11 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
         _showSuccessSnackBar('Profile created successfully!');
 
         // Update the AuthProvider to fetch the latest user data
-        final authProvider = Provider.of<AuthProvider>(context, listen: false);
+        //final authProvider = Provider.of<AuthProvider>(context, listen: false);
         await Future.delayed(const Duration(milliseconds: 500)); // Give Firestore time to update
 
-        // Navigate based on user role
-        if (_selectedRole == 'landlord') {
-          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LandlordDashboard()), (route) => false);
-        } else if (_selectedRole == 'admin') {
-          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const AdminDashboard()), (route) => false);
-        } else {
-          // If somehow a student role is selected, go to landlord dashboard by default
-          Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LandlordDashboard()), (route) => false);
-        }
+        // Navigate to landlord dashboard
+        Navigator.pushAndRemoveUntil(context, MaterialPageRoute(builder: (context) => const LandlordDashboard()), (route) => false);
       }
     } catch (e) {
       if (mounted) {
@@ -354,7 +342,7 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
       onTap: () => FocusScope.of(context).unfocus(),
       child: Scaffold(
         backgroundColor: Colors.white,
-        appBar: AppBar(elevation: 0, backgroundColor: Colors.white, iconTheme: const IconThemeData(color: Colors.black87), title: const Text("Complete Your Profile", style: TextStyle(color: Colors.black87, fontWeight: FontWeight.bold)), centerTitle: true),
+        appBar: AppBar(elevation: 0, backgroundColor: Colors.white, iconTheme: const IconThemeData(color: AppTheme.primaryColor), title: const Text("Complete Your Profile", style: TextStyle(color: AppTheme.primaryColor, fontWeight: FontWeight.bold)), centerTitle: true),
         body: SafeArea(
           child:
               _isLoading && (_displayNameController.text.isEmpty && _nrcNumberController.text.isEmpty)
@@ -366,14 +354,14 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           // Progress indicator
-                          LinearProgressIndicator(value: 0.9, backgroundColor: Colors.grey.shade200, valueColor: const AlwaysStoppedAnimation<Color>(Colors.black)),
+                          LinearProgressIndicator(value: 0.9, backgroundColor: Colors.grey.shade200, valueColor: const AlwaysStoppedAnimation<Color>(AppTheme.primaryColor)),
                           const SizedBox(height: 24),
 
                           // Header
                           Center(
                             child: Column(
                               children: [
-                                const Text("Almost there!", style: TextStyle(fontSize: 28.0, color: Colors.black87, fontWeight: FontWeight.bold, height: 1.2)),
+                                const Text("Almost there!", style: TextStyle(fontSize: 28.0, color: AppTheme.primaryColor, fontWeight: FontWeight.bold, height: 1.2)),
                                 const SizedBox(height: 12),
                                 Text("Please complete your partner profile to continue", style: TextStyle(fontSize: 16.0, color: Colors.grey.shade700)),
                               ],
@@ -401,46 +389,8 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
                             child: Column(
                               crossAxisAlignment: CrossAxisAlignment.start,
                               children: [
-                                // User Role Selection
-                                const Text("Account Type", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
-                                const SizedBox(height: 8),
-                                Container(
-                                  decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(10)),
-                                  child: Row(
-                                    children: [
-                                      Expanded(
-                                        child: RadioListTile<String>(
-                                          title: const Text('Landlord'),
-                                          value: 'landlord',
-                                          groupValue: _selectedRole,
-                                          onChanged: (String? value) {
-                                            setState(() {
-                                              _selectedRole = value!;
-                                            });
-                                          },
-                                          activeColor: const Color(0xFF1F2B7E),
-                                        ),
-                                      ),
-                                      Expanded(
-                                        child: RadioListTile<String>(
-                                          title: const Text('Admin'),
-                                          value: 'admin',
-                                          groupValue: _selectedRole,
-                                          onChanged: (String? value) {
-                                            setState(() {
-                                              _selectedRole = value!;
-                                            });
-                                          },
-                                          activeColor: const Color(0xFF1F2B7E),
-                                        ),
-                                      ),
-                                    ],
-                                  ),
-                                ),
-                                const SizedBox(height: 20),
-
                                 // Display Name
-                                const Text("Full Name", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                const Text("Full Name", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _displayNameController,
@@ -462,35 +412,8 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
                                 ),
                                 const SizedBox(height: 20),
 
-                                // Email address
-                                const Text("Email Address", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
-                                const SizedBox(height: 8),
-                                TextFormField(
-                                  controller: _emailController,
-                                  keyboardType: TextInputType.emailAddress,
-                                  decoration: InputDecoration(
-                                    hintText: "Enter your email address",
-                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
-                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
-                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1F2B7E), width: 2)),
-                                    filled: true,
-                                    fillColor: Colors.white,
-                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                  ),
-                                  validator: (value) {
-                                    if (value == null || value.trim().isEmpty) {
-                                      return 'Please enter your email address';
-                                    }
-                                    if (!RegExp(r'^[\w-\.]+@([\w-]+\.)+[\w-]{2,4}$').hasMatch(value)) {
-                                      return 'Please enter a valid email address';
-                                    }
-                                    return null;
-                                  },
-                                ),
-                                const SizedBox(height: 20),
-
                                 // NRC Number
-                                const Text("NRC Number", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                const Text("NRC Number", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
                                 const SizedBox(height: 8),
                                 TextFormField(
                                   controller: _nrcNumberController,
@@ -513,26 +436,24 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
                                 const SizedBox(height: 20),
 
                                 // Business Name (for landlords)
-                                if (_selectedRole == 'landlord') ...[
-                                  const Text("Business Name (Optional)", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
-                                  const SizedBox(height: 8),
-                                  TextFormField(
-                                    controller: _businessNameController,
-                                    decoration: InputDecoration(
-                                      hintText: "Enter your business name if applicable",
-                                      border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
-                                      enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
-                                      focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1F2B7E), width: 2)),
-                                      filled: true,
-                                      fillColor: Colors.white,
-                                      contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
-                                    ),
+                                const Text("Business Name (Optional)", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
+                                const SizedBox(height: 8),
+                                TextFormField(
+                                  controller: _businessNameController,
+                                  decoration: InputDecoration(
+                                    hintText: "Enter your business name if applicable",
+                                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
+                                    enabledBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: BorderSide(color: Colors.grey.shade300)),
+                                    focusedBorder: OutlineInputBorder(borderRadius: BorderRadius.circular(10), borderSide: const BorderSide(color: Color(0xFF1F2B7E), width: 2)),
+                                    filled: true,
+                                    fillColor: Colors.white,
+                                    contentPadding: const EdgeInsets.symmetric(horizontal: 16, vertical: 16),
                                   ),
-                                  const SizedBox(height: 20),
-                                ],
+                                ),
+                                const SizedBox(height: 20),
 
                                 // Gender
-                                const Text("Gender", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: Colors.black87)),
+                                const Text("Gender", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, color: AppTheme.primaryColor)),
                                 const SizedBox(height: 8),
                                 Container(
                                   decoration: BoxDecoration(border: Border.all(color: Colors.grey.shade300), borderRadius: BorderRadius.circular(10)),
@@ -572,12 +493,7 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
                               children: [
                                 Row(children: [Icon(Icons.info_outline, size: 20, color: Colors.orange.shade800), const SizedBox(width: 8), Text("Important Information", style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.orange.shade800))]),
                                 const SizedBox(height: 8),
-                                Text(
-                                  _selectedRole == 'landlord'
-                                      ? "After submitting your profile, your account will need to be verified by an administrator before you can list properties. This helps ensure the security and quality of our platform."
-                                      : "Admin accounts require additional verification. After submission, your request will be reviewed by the system administrators.",
-                                  style: TextStyle(fontSize: 14, color: Colors.orange.shade900),
-                                ),
+                                Text("After submitting your profile, your account will need to be verified by an administrator before you can list properties. This helps ensure the security and quality of our platform.", style: TextStyle(fontSize: 14, color: Colors.orange.shade900)),
                               ],
                             ),
                           ),
@@ -589,7 +505,7 @@ class _UserProfileSetupScreenState extends State<UserProfileSetupScreen> {
                             height: 56,
                             child: ElevatedButton(
                               onPressed: _isLoading ? null : _saveUserProfile,
-                              style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
+                              style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)), elevation: 0),
                               child:
                                   _isLoading
                                       ? const SizedBox(height: 24, width: 24, child: CircularProgressIndicator(valueColor: AlwaysStoppedAnimation<Color>(Colors.white), strokeWidth: 2.5))

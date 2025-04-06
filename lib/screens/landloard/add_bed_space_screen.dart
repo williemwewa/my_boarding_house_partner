@@ -1,11 +1,15 @@
 import 'dart:io';
+import 'dart:convert';
 
 import 'package:flutter/material.dart';
 import 'package:cloud_firestore/cloud_firestore.dart';
 import 'package:firebase_storage/firebase_storage.dart';
+import 'package:firebase_auth/firebase_auth.dart';
 import 'package:image_picker/image_picker.dart';
 import 'package:uuid/uuid.dart';
 import 'package:path/path.dart' as path;
+import 'package:http/http.dart' as http;
+import 'package:http_parser/http_parser.dart';
 
 import 'package:my_boarding_house_partner/utils/app_theme.dart';
 import 'package:my_boarding_house_partner/models/property_model.dart';
@@ -128,19 +132,80 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
     // Keep existing images
     imageUrls.addAll(_existingImages);
 
-    // Upload new images
-    for (final image in _newImages) {
-      final String fileName = '${const Uuid().v4()}${path.extension(image.path)}';
-      final Reference ref = FirebaseStorage.instance.ref().child('properties').child(widget.propertyId).child('rooms').child(widget.roomId).child('bedspaces').child(fileName);
-
-      final UploadTask uploadTask = ref.putFile(image);
-      final TaskSnapshot snapshot = await uploadTask.whenComplete(() => null);
-      final String downloadUrl = await snapshot.ref.getDownloadURL();
-
-      imageUrls.add(downloadUrl);
+    // If there are no new images, return just existing ones
+    if (_newImages.isEmpty) {
+      return imageUrls;
     }
 
-    return imageUrls;
+    try {
+      // Get authentication token for API request
+      final user = FirebaseAuth.instance.currentUser;
+      final idToken = await user?.getIdToken() ?? '';
+
+      // Upload each image via API
+      for (final imageFile in _newImages) {
+        // Create unique filename
+        final String fileName = '${const Uuid().v4()}${path.extension(imageFile.path)}';
+
+        // Prepare the API request
+        final url = Uri.parse('http://143.198.165.152/api/upload-image');
+
+        // Create multipart request
+        var request = http.MultipartRequest('POST', url);
+
+        // Set headers including authentication
+        request.headers.addAll({'Authorization': 'Bearer $idToken', 'Content-Type': 'multipart/form-data'});
+
+        // Add metadata fields
+        request.fields['propertyId'] = widget.propertyId;
+        request.fields['roomId'] = widget.roomId;
+        request.fields['type'] = 'bedspace';
+
+        // Add the file
+        var fileStream = http.ByteStream(imageFile.openRead());
+        var fileLength = await imageFile.length();
+
+        // Determine content type based on file extension
+        final fileExt = path.extension(imageFile.path).toLowerCase();
+        String contentType = 'image/jpeg'; // default
+        if (fileExt == '.png') {
+          contentType = 'image/png';
+        } else if (fileExt == '.gif') {
+          contentType = 'image/gif';
+        } else if (fileExt == '.webp') {
+          contentType = 'image/webp';
+        }
+
+        var multipartFile = http.MultipartFile('image', fileStream, fileLength, filename: fileName, contentType: MediaType.parse(contentType));
+
+        request.files.add(multipartFile);
+
+        // Send the request
+        var response = await request.send();
+
+        // Process the response
+        if (response.statusCode == 200) {
+          // Get response data
+          final responseData = await response.stream.bytesToString();
+          final jsonData = json.decode(responseData);
+
+          // Add the image URL from the API response
+          if (jsonData['url'] != null) {
+            imageUrls.add(jsonData['url']);
+          } else {
+            throw Exception('API returned success but no image URL');
+          }
+        } else {
+          final responseData = await response.stream.bytesToString();
+          throw Exception('Failed to upload image. Status: ${response.statusCode}, Response: $responseData');
+        }
+      }
+
+      return imageUrls;
+    } catch (e) {
+      print('Error uploading images to API: $e');
+      throw Exception('Failed to upload images: $e');
+    }
   }
 
   Future<void> _saveBedSpace() async {
@@ -153,7 +218,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
     });
 
     try {
-      // Upload images to Firebase Storage
+      // Upload images via API
       final List<String> imageUrls = await _uploadImages();
 
       // Parse form data
@@ -229,7 +294,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
   @override
   Widget build(BuildContext context) {
     return Scaffold(
-      appBar: AppBar(title: Text(widget.bedSpace == null ? 'Add Bed Space' : 'Edit Bed Space', style: const TextStyle(color: Colors.black87)), backgroundColor: Colors.white, elevation: 0, iconTheme: const IconThemeData(color: Colors.black87)),
+      appBar: AppBar(title: Text(widget.bedSpace == null ? 'Add Bed Space' : 'Edit Bed Space', style: const TextStyle(color: AppTheme.primaryColor)), backgroundColor: Colors.white, elevation: 0, iconTheme: const IconThemeData(color: AppTheme.primaryColor)),
       body:
           _isLoading
               ? const Center(child: CircularProgressIndicator())
@@ -250,9 +315,9 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
                           child: Column(
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
-                              Row(children: [const Icon(Icons.apartment, size: 16, color: Colors.grey), const SizedBox(width: 8), Expanded(child: Text('Property: ${widget.propertyName}', style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis))]),
+                              Row(children: [const Icon(Icons.apartment, size: 16, color: AppTheme.primaryColor), const SizedBox(width: 8), Expanded(child: Text('Property: ${widget.propertyName}', style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis))]),
                               const SizedBox(height: 8),
-                              Row(children: [const Icon(Icons.meeting_room, size: 16, color: Colors.grey), const SizedBox(width: 8), Expanded(child: Text('Room: ${widget.roomName}', style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis))]),
+                              Row(children: [const Icon(Icons.meeting_room, size: 16, color: AppTheme.primaryColor), const SizedBox(width: 8), Expanded(child: Text('Room: ${widget.roomName}', style: const TextStyle(fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis))]),
                             ],
                           ),
                         ),
@@ -266,7 +331,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
                       // Bed space name
                       TextFormField(
                         controller: _nameController,
-                        decoration: const InputDecoration(labelText: 'Bed Space Name/Number', hintText: 'e.g. Bed 1, Lower Bunk, etc.', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(labelText: 'Bed Space Name/Number', hintText: 'e.g. Bed 1, Lower Bunk, etc.', border: OutlineInputBorder(), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.primaryColor))),
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
                             return 'Please enter a name or number for this bed space';
@@ -279,7 +344,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
                       // Bed space description
                       TextFormField(
                         controller: _descriptionController,
-                        decoration: const InputDecoration(labelText: 'Description', hintText: 'Describe this bed space...', border: OutlineInputBorder(), alignLabelWithHint: true),
+                        decoration: const InputDecoration(labelText: 'Description', hintText: 'Describe this bed space...', border: OutlineInputBorder(), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.primaryColor)), alignLabelWithHint: true),
                         maxLines: 3,
                         validator: (value) {
                           if (value == null || value.trim().isEmpty) {
@@ -302,7 +367,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
                             flex: 2,
                             child: TextFormField(
                               controller: _priceController,
-                              decoration: const InputDecoration(labelText: 'Price (ZMW)', hintText: 'e.g. 650.00', border: OutlineInputBorder(), prefixText: 'ZMW '),
+                              decoration: const InputDecoration(labelText: 'Price (ZMW)', hintText: 'e.g. 650.00', border: OutlineInputBorder(), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.primaryColor)), prefixText: 'ZMW '),
                               keyboardType: const TextInputType.numberWithOptions(decimal: true),
                               validator: (value) {
                                 if (value == null || value.trim().isEmpty) {
@@ -322,7 +387,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
                             flex: 2,
                             child: DropdownButtonFormField<String>(
                               value: _priceUnit,
-                              decoration: const InputDecoration(labelText: 'Price Unit', border: OutlineInputBorder()),
+                              decoration: const InputDecoration(labelText: 'Price Unit', border: OutlineInputBorder(), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.primaryColor))),
                               items:
                                   _priceUnits.map((String unit) {
                                     return DropdownMenuItem<String>(value: unit, child: Text(unit));
@@ -334,6 +399,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
                                   });
                                 }
                               },
+                              dropdownColor: Colors.white,
                             ),
                           ),
                         ],
@@ -343,7 +409,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
                       // Status
                       DropdownButtonFormField<String>(
                         value: _status,
-                        decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder()),
+                        decoration: const InputDecoration(labelText: 'Status', border: OutlineInputBorder(), focusedBorder: OutlineInputBorder(borderSide: BorderSide(color: AppTheme.primaryColor))),
                         items:
                             _statusOptions.map((String status) {
                               return DropdownMenuItem<String>(value: status, child: Text(status == 'available' ? 'Available' : 'Maintenance Required', style: TextStyle(color: status == 'available' ? Colors.green : Colors.orange)));
@@ -355,6 +421,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
                             });
                           }
                         },
+                        dropdownColor: Colors.white,
                       ),
                       const SizedBox(height: 24),
 
@@ -400,7 +467,7 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
                         height: 50,
                         child: ElevatedButton(
                           onPressed: _isSubmitting ? null : _saveBedSpace,
-                          style: ElevatedButton.styleFrom(backgroundColor: Colors.black, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8))),
+                          style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white, shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)), disabledBackgroundColor: AppTheme.primaryColor.withOpacity(0.5)),
                           child: _isSubmitting ? const CircularProgressIndicator(color: Colors.white) : Text(widget.bedSpace == null ? 'Add Bed Space' : 'Update Bed Space', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
                         ),
                       ),
@@ -423,9 +490,23 @@ class _AddBedSpaceScreenState extends State<AddBedSpaceScreen> {
         // Image selector buttons
         Row(
           children: [
-            Expanded(child: OutlinedButton.icon(onPressed: _pickImages, icon: const Icon(Icons.photo_library), label: const Text('Pick from Gallery'), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)))),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _pickImages,
+                icon: const Icon(Icons.photo_library, color: AppTheme.primaryColor),
+                label: const Text('Pick from Gallery', style: TextStyle(color: AppTheme.primaryColor)),
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), side: const BorderSide(color: AppTheme.primaryColor)),
+              ),
+            ),
             const SizedBox(width: 16),
-            Expanded(child: OutlinedButton.icon(onPressed: _takePhoto, icon: const Icon(Icons.camera_alt), label: const Text('Take Photo'), style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12)))),
+            Expanded(
+              child: OutlinedButton.icon(
+                onPressed: _takePhoto,
+                icon: const Icon(Icons.camera_alt, color: AppTheme.primaryColor),
+                label: const Text('Take Photo', style: TextStyle(color: AppTheme.primaryColor)),
+                style: OutlinedButton.styleFrom(padding: const EdgeInsets.symmetric(vertical: 12), side: const BorderSide(color: AppTheme.primaryColor)),
+              ),
+            ),
           ],
         ),
         const SizedBox(height: 16),

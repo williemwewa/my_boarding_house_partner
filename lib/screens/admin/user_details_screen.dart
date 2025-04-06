@@ -167,10 +167,10 @@ class _UserDetailsScreenState extends State<UserDetailsScreen> with SingleTicker
   Widget build(BuildContext context) {
     return Scaffold(
       appBar: AppBar(
-        title: const Text('User Details', style: TextStyle(color: Colors.black87)),
+        title: const Text('User Details', style: TextStyle(color: AppTheme.primaryColor)),
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: const IconThemeData(color: AppTheme.primaryColor),
         actions: [
           PopupMenuButton<String>(
             onSelected: (value) {

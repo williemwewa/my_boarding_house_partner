@@ -243,7 +243,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  Text(widget.studentName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: Colors.black87), maxLines: 1, overflow: TextOverflow.ellipsis),
+                  Text(widget.studentName, style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor), maxLines: 1, overflow: TextOverflow.ellipsis),
                   if (widget.propertyName != null) Text(widget.propertyName!, style: TextStyle(fontSize: 12, color: Colors.grey.shade700), maxLines: 1, overflow: TextOverflow.ellipsis),
                 ],
               ),
@@ -252,7 +252,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
         ),
         backgroundColor: Colors.white,
         elevation: 0,
-        iconTheme: const IconThemeData(color: Colors.black87),
+        iconTheme: const IconThemeData(color: AppTheme.primaryColor),
         actions: [
           IconButton(
             icon: const Icon(Icons.call),
@@ -373,7 +373,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
                 ],
 
                 // Message text
-                if (message.text.isNotEmpty) Text(message.text, style: TextStyle(fontSize: 14, color: isMe ? Colors.black87 : Colors.black87)),
+                if (message.text.isNotEmpty) Text(message.text, style: TextStyle(fontSize: 14, color: isMe ? AppTheme.primaryColor : AppTheme.primaryColor)),
 
                 // Timestamp
                 const SizedBox(height: 4),
@@ -446,7 +446,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
       child: Column(
         mainAxisSize: MainAxisSize.min,
         children: [
-          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))]), child: Icon(icon, color: AppTheme.primaryColor, size: 24)),
+          Container(padding: const EdgeInsets.all(12), decoration: BoxDecoration(color: Colors.white, shape: BoxShape.circle, boxShadow: [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, 2))]), child: Icon(icon, color: AppTheme.primaryColor, size: 24)),
           const SizedBox(height: 8),
           Text(label, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
         ],
@@ -457,7 +457,7 @@ class _MessagingScreenState extends State<MessagingScreen> {
   Widget _buildMessageInput() {
     return Container(
       padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8),
-      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, -2))]),
+      decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: AppTheme.primaryColor.withOpacity(0.05), blurRadius: 8, offset: const Offset(0, -2))]),
       child: Row(
         children: [
           // Attachment button

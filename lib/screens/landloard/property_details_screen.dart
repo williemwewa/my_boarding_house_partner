@@ -11,9 +11,6 @@ import 'package:provider/provider.dart';
 
 import 'package:my_boarding_house_partner/models/property_model.dart';
 import 'package:my_boarding_house_partner/providers/auth_provider.dart';
-// import 'package:my_boarding_house_partner/screens/landlord/add_property_screen.dart';
-// import 'package:my_boarding_house_partner/screens/landlord/add_room_screen.dart';
-// import 'package:my_boarding_house_partner/screens/landlord/room_details_screen.dart';
 import 'package:my_boarding_house_partner/utils/app_theme.dart';
 import 'package:my_boarding_house_partner/widgets/empty_state_widget.dart';
 
@@ -177,7 +174,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> with Sing
             : Container(color: Colors.grey.shade300, child: const Icon(Icons.apartment, size: 80, color: Colors.white)),
 
         // Gradient overlay for better readability of action buttons
-        Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.center, colors: [Colors.black.withOpacity(0.7), Colors.transparent]))),
+        Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.center, colors: [AppTheme.primaryColor.withOpacity(0.7), Colors.transparent]))),
 
         // Status badges
         Positioned(
@@ -305,7 +302,24 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> with Sing
         if (isVerified && widget.property.isVerified)
           Padding(
             padding: const EdgeInsets.all(16),
-            child: SizedBox(width: double.infinity, child: ElevatedButton.icon(onPressed: _addRoom, icon: const Icon(Icons.add), label: const Text('Add Room'), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, padding: const EdgeInsets.symmetric(vertical: 12)))),
+            child: SizedBox(
+              width: double.infinity,
+              child: ElevatedButton.icon(
+                onPressed: _addRoom,
+                icon: const Icon(Icons.add, color: Colors.white), // Optional: make icon white
+                label: const Text(
+                  'Add Room',
+                  style: TextStyle(color: Colors.white), // Text color white
+                ),
+                style: ElevatedButton.styleFrom(
+                  backgroundColor: AppTheme.primaryColor,
+                  padding: const EdgeInsets.symmetric(vertical: 12),
+                  shape: RoundedRectangleBorder(
+                    borderRadius: BorderRadius.circular(8), // Circular radius of 8
+                  ),
+                ),
+              ),
+            ),
           ),
 
         // Rooms list
@@ -377,7 +391,7 @@ class _PropertyDetailsScreenState extends State<PropertyDetailsScreen> with Sing
                   left: 12,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(color: Colors.black.withOpacity(0.7), borderRadius: BorderRadius.circular(20)),
+                    decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.7), borderRadius: BorderRadius.circular(20)),
                     child: Text(room.roomType, style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
                   ),
                 ),
