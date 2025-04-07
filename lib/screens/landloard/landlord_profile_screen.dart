@@ -444,7 +444,7 @@ class _LandlordProfileScreenState extends State<LandlordProfileScreen> {
                 onPressed: _isUpdating ? null : _updateProfile,
                 icon: Icon(_isEditing ? Icons.save : Icons.edit),
                 label: _isUpdating ? const SizedBox(width: 24, height: 24, child: CircularProgressIndicator(color: Colors.white, strokeWidth: 2)) : Text(_isEditing ? 'Save Profile' : 'Edit Profile'),
-                style: ElevatedButton.styleFrom(backgroundColor: _isEditing ? Colors.green : AppTheme.primaryColor, padding: const EdgeInsets.symmetric(vertical: 12)),
+                style: ElevatedButton.styleFrom(backgroundColor: _isEditing ? AppTheme.primaryColor : Colors.white, padding: const EdgeInsets.symmetric(vertical: 12)),
               ),
             ),
             if (_isEditing) ...[

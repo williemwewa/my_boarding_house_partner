@@ -34,7 +34,6 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
   final _nameController = TextEditingController();
   final _descriptionController = TextEditingController();
   final _areaController = TextEditingController();
-  final _totalBedSpacesController = TextEditingController();
 
   // Room type
   String _roomType = 'Single';
@@ -45,7 +44,27 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
   List<String> _existingImages = [];
 
   // Amenities
-  final List<String> _allAmenities = ['Wi-Fi', 'TV', 'Air Conditioning', 'Heating', 'Desk', 'Wardrobe', 'Private Bathroom', 'Shared Bathroom', 'Reading Light'];
+  final List<String> _allAmenities = [
+    'Wi-Fi',
+    'TV',
+    'Solar Power', // important due to power cuts (load shedding)
+    'Air Conditioning', // useful in hot seasons
+    'Ceiling Fan', // alternative to AC
+    'Desk',
+    'Wardrobe',
+    'Private Bathroom', // highly preferred
+    'Shared Bathroom',
+    'Reading Light',
+    'Borehole Water', // premium and reliable water supply
+    'Geyser/Hot Water',
+    'DSTV or Zuku', // popular satellite TV options
+    'Kitchen Access',
+    'Refrigerator',
+    'Laundry Area',
+    'Security (Grill Doors / Wall Fence)',
+    'Parking Space',
+    'Backup Generator or Inverter',
+  ];
   List<String> _selectedAmenities = [];
 
   @override
@@ -65,7 +84,6 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
       _nameController.text = room.name;
       _descriptionController.text = room.description;
       _areaController.text = room.area.toString();
-      _totalBedSpacesController.text = room.totalBedSpaces.toString();
       _roomType = room.roomType;
       _existingImages = List<String>.from(room.photos);
       _selectedAmenities = List<String>.from(room.amenities);
@@ -77,7 +95,6 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
     _nameController.dispose();
     _descriptionController.dispose();
     _areaController.dispose();
-    _totalBedSpacesController.dispose();
     super.dispose();
   }
 
@@ -227,7 +244,6 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
         'name': _nameController.text.trim(),
         'description': _descriptionController.text.trim(),
         'roomType': _roomType,
-        'totalBedSpaces': int.parse(_totalBedSpacesController.text.trim()),
         'area': double.parse(_areaController.text.trim()),
         'photos': imageUrls,
         'amenities': _selectedAmenities,
@@ -250,39 +266,17 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
           }
 
           final int currentRoomCount = propertyDoc.data()?['totalRooms'] ?? 0;
-          final int currentBedSpaces = propertyDoc.data()?['totalBedSpaces'] ?? 0;
 
-          transaction.update(propertyRef, {'totalRooms': currentRoomCount + 1, 'totalBedSpaces': currentBedSpaces + int.parse(_totalBedSpacesController.text.trim()), 'updatedAt': FieldValue.serverTimestamp()});
+          transaction.update(propertyRef, {'totalRooms': currentRoomCount + 1, 'updatedAt': FieldValue.serverTimestamp()});
         });
 
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Room added successfully!'), backgroundColor: Colors.green));
       } else {
         // Update existing room
-        // First, get the current bed space count
         final roomRef = FirebaseFirestore.instance.collection('Properties').doc(widget.propertyId).collection('Rooms').doc(widget.room!.id);
-
-        final roomDoc = await roomRef.get();
-        final int oldBedSpaceCount = roomDoc.data()?['totalBedSpaces'] ?? 0;
-        final int newBedSpaceCount = int.parse(_totalBedSpacesController.text.trim());
 
         // Update the room
         await roomRef.update(roomData);
-
-        // If bed space count changed, update property totalBedSpaces count
-        if (oldBedSpaceCount != newBedSpaceCount) {
-          final propertyRef = FirebaseFirestore.instance.collection('Properties').doc(widget.propertyId);
-
-          await FirebaseFirestore.instance.runTransaction((transaction) async {
-            final propertyDoc = await transaction.get(propertyRef);
-            if (!propertyDoc.exists) {
-              throw Exception('Property does not exist');
-            }
-
-            final int currentBedSpaces = propertyDoc.data()?['totalBedSpaces'] ?? 0;
-
-            transaction.update(propertyRef, {'totalBedSpaces': currentBedSpaces - oldBedSpaceCount + newBedSpaceCount, 'updatedAt': FieldValue.serverTimestamp()});
-          });
-        }
 
         ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Room updated successfully!'), backgroundColor: Colors.green));
       }
@@ -364,43 +358,20 @@ class _AddRoomScreenState extends State<AddRoomScreen> {
                       ),
                       const SizedBox(height: 16),
 
-                      // Room area and bed spaces
-                      Row(
-                        children: [
-                          Expanded(
-                            child: TextFormField(
-                              controller: _areaController,
-                              decoration: const InputDecoration(labelText: 'Area (m²)', border: OutlineInputBorder()),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter area';
-                                }
-                                if (double.tryParse(value) == null) {
-                                  return 'Invalid number';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                          const SizedBox(width: 16),
-                          Expanded(
-                            child: TextFormField(
-                              controller: _totalBedSpacesController,
-                              decoration: const InputDecoration(labelText: 'Bed Spaces', border: OutlineInputBorder()),
-                              keyboardType: TextInputType.number,
-                              validator: (value) {
-                                if (value == null || value.trim().isEmpty) {
-                                  return 'Please enter count';
-                                }
-                                if (int.tryParse(value) == null) {
-                                  return 'Invalid number';
-                                }
-                                return null;
-                              },
-                            ),
-                          ),
-                        ],
+                      // Room area
+                      TextFormField(
+                        controller: _areaController,
+                        decoration: const InputDecoration(labelText: 'Area (m²)', border: OutlineInputBorder()),
+                        keyboardType: TextInputType.number,
+                        validator: (value) {
+                          if (value == null || value.trim().isEmpty) {
+                            return 'Please enter area';
+                          }
+                          if (double.tryParse(value) == null) {
+                            return 'Invalid number';
+                          }
+                          return null;
+                        },
                       ),
                       const SizedBox(height: 24),
 

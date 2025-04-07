@@ -5,9 +5,11 @@ final String _imageUploadApiUrl = 'http://143.198.165.152/api/upload-image';
 
 class AppTheme {
   // Colors from the screenshots
+  // static const Color primaryColor = Color(0xFFFF385C); // Airbnb red
   static const Color primaryColor = Color(0xFF1F2B7E);
+
   static const Color primaryColorLight = Color(0xFF3E4DA0);
-  static const Color accentColor = Color(0xFF2196F3);
+  static const Color accentColor = Color(0xFF2196F3); //
   static const Color backgroundColor = Colors.white;
   static const Color textColor = AppTheme.primaryColor;
   static const Color secondaryTextColor = Color(0xFF757575);

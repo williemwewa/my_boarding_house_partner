@@ -23,6 +23,7 @@ class _PropertiesScreenState extends State<PropertiesScreen> {
   List<Property> _properties = [];
   String _filterStatus = 'All'; // 'All', 'Active', 'Inactive', 'Pending'
   bool _showVerifiedOnly = false;
+  Map<String, bool> _favorites = {}; // Track favorited properties
 
   @override
   void initState() {
@@ -207,90 +208,140 @@ class _PropertiesScreenState extends State<PropertiesScreen> {
             _loadProperties();
           });
         },
-        backgroundColor: Colors.grey.shade200,
-        selectedColor: AppTheme.primaryColor.withOpacity(0.2),
+        backgroundColor: isSelected ? Colors.grey.shade100 : Colors.grey.shade200, // lighter when inactive
+        selectedColor: Colors.grey.shade100,
         checkmarkColor: AppTheme.primaryColor,
-        labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : AppTheme.primaryColor, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+        labelStyle: TextStyle(color: isSelected ? AppTheme.primaryColor : Colors.black54, fontWeight: isSelected ? FontWeight.bold : FontWeight.normal),
+        side: BorderSide(color: isSelected ? AppTheme.primaryColor : Colors.grey.shade400, width: 1),
       ),
     );
   }
 
   Widget _buildPropertyCard(Property property) {
-    return Card(
-      margin: const EdgeInsets.only(bottom: 16),
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      elevation: 2,
+    // Determine if singular or plural for rooms
+    final roomText = property.totalRooms == 1 ? '1 Room' : '${property.totalRooms} Rooms';
+    final bedText = property.totalBedSpaces == 1 ? '1 Bed' : '${property.totalBedSpaces} Beds';
+
+    // Get favorite status
+    final isFavorite = _favorites[property.id] ?? false;
+
+    return Container(
+      margin: const EdgeInsets.only(bottom: 24),
+      decoration: BoxDecoration(color: Colors.white, borderRadius: BorderRadius.circular(12)),
       child: InkWell(
         onTap: () => _navigateToPropertyDetails(property),
         borderRadius: BorderRadius.circular(12),
         child: Column(
-          crossAxisAlignment: CrossAxisAlignment.stretch,
+          crossAxisAlignment: CrossAxisAlignment.start,
           children: [
-            // Property image with status badge
+            // Property image with heart icon
             Stack(
               children: [
+                // Property image with border radius on all sides
                 ClipRRect(
-                  borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
+                  borderRadius: BorderRadius.circular(12),
                   child:
                       property.photos.isNotEmpty
-                          ? Image.network(property.photos.first, height: 160, width: double.infinity, fit: BoxFit.cover, errorBuilder: (ctx, error, stackTrace) => Container(height: 160, color: Colors.grey.shade300, child: const Icon(Icons.image_not_supported, size: 50, color: Colors.white)))
-                          : Container(height: 160, color: Colors.grey.shade300, child: const Icon(Icons.apartment, size: 50, color: Colors.white)),
+                          ? Image.network(property.photos.first, height: 300, width: double.infinity, fit: BoxFit.cover, errorBuilder: (ctx, error, stackTrace) => Container(height: 300, color: Colors.grey.shade300, child: const Icon(Icons.image_not_supported, size: 50, color: Colors.white)))
+                          : Container(height: 300, color: Colors.grey.shade300, child: const Icon(Icons.apartment, size: 50, color: Colors.white)),
                 ),
-                // Status badge
+
+                // Heart icon - now toggleable
+                Positioned(
+                  top: 12,
+                  right: 12,
+                  child: Container(
+                    decoration: BoxDecoration(color: Colors.transparent, shape: BoxShape.circle),
+                    child: IconButton(
+                      icon: Icon(isFavorite ? Icons.favorite : Icons.favorite_border, color: isFavorite ? Colors.red : Colors.white, size: 28),
+                      onPressed: () {
+                        setState(() {
+                          // Toggle favorite status
+                          _favorites[property.id] = !isFavorite;
+                        });
+                      },
+                    ),
+                  ),
+                ),
+
+                // Status badge - styled to match the new design
                 Positioned(
                   top: 12,
                   left: 12,
                   child: Container(
                     padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                    decoration: BoxDecoration(color: _getStatusColor(property), borderRadius: BorderRadius.circular(20)),
-                    child: Text(_getStatusText(property), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                    decoration: BoxDecoration(color: _getStatusColor(property).withOpacity(0.8), borderRadius: BorderRadius.circular(20)),
+                    child: Text(_getStatusText(property), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 12)),
                   ),
                 ),
-                // Verification badge if applicable
+
+                // Verification badge if applicable - styled to match new design
                 if (property.isVerified)
                   Positioned(
-                    top: 12,
-                    right: 12,
+                    bottom: 12,
+                    left: 12,
                     child: Container(
-                      padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
-                      decoration: BoxDecoration(color: Colors.teal, borderRadius: BorderRadius.circular(20)),
-                      child: Row(mainAxisSize: MainAxisSize.min, children: const [Icon(Icons.verified, color: Colors.white, size: 16), SizedBox(width: 4), Text('Verified', style: TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12))]),
+                      padding: const EdgeInsets.symmetric(horizontal: 10, vertical: 4),
+                      decoration: BoxDecoration(color: Colors.teal.withOpacity(0.8), borderRadius: BorderRadius.circular(16)),
+                      child: Row(mainAxisSize: MainAxisSize.min, children: const [Icon(Icons.verified, color: Colors.white, size: 14), SizedBox(width: 4), Text('Verified', style: TextStyle(color: Colors.white, fontWeight: FontWeight.w500, fontSize: 11))]),
                     ),
                   ),
+
+                // Indicator dots
+                Positioned(
+                  bottom: 8,
+                  left: 0,
+                  right: 0,
+                  child: Row(
+                    mainAxisAlignment: MainAxisAlignment.center,
+                    children: [
+                      Container(width: 8, height: 8, margin: EdgeInsets.symmetric(horizontal: 2), decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white)),
+                      for (int i = 0; i < 4; i++) Container(width: 8, height: 8, margin: EdgeInsets.symmetric(horizontal: 2), decoration: BoxDecoration(shape: BoxShape.circle, color: Colors.white.withOpacity(0.5))),
+                    ],
+                  ),
+                ),
               ],
             ),
-            // Property details
+
+            // Property details - matching the exact layout in the image
             Padding(
               padding: const EdgeInsets.all(16),
               child: Column(
                 crossAxisAlignment: CrossAxisAlignment.start,
                 children: [
-                  // Property name
-                  Text(property.name, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold), maxLines: 1, overflow: TextOverflow.ellipsis),
-                  const SizedBox(height: 8),
-                  // Address
-                  Row(children: [const Icon(Icons.location_on_outlined, size: 16, color: Colors.grey), const SizedBox(width: 4), Expanded(child: Text(property.address, style: TextStyle(fontSize: 14, color: Colors.grey.shade700), maxLines: 1, overflow: TextOverflow.ellipsis))]),
-                  const SizedBox(height: 16),
-                  // Stats row
-                  Row(
-                    mainAxisAlignment: MainAxisAlignment.spaceBetween,
-                    children: [_buildStat(Icons.meeting_room_outlined, '${property.totalRooms} Rooms'), _buildStat(Icons.bed_outlined, '${property.totalBedSpaces} Bed Spaces'), _buildStat(Icons.monetization_on_outlined, 'ZMW ${property.minPrice.toStringAsFixed(0)}')],
-                  ),
-                  const SizedBox(height: 16),
-                  // Booking status row
+                  // Location and rating
                   Row(
                     mainAxisAlignment: MainAxisAlignment.spaceBetween,
                     children: [
-                      Row(
-                        children: [
-                          Container(padding: const EdgeInsets.all(8), decoration: BoxDecoration(color: Colors.blue.shade50, shape: BoxShape.circle), child: Icon(Icons.book_outlined, size: 16, color: Colors.blue.shade700)),
-                          const SizedBox(width: 8),
-                          Text('${property.occupiedBedSpaces}/${property.totalBedSpaces} Occupied', style: TextStyle(fontWeight: FontWeight.w500, color: Colors.grey.shade800)),
-                        ],
-                      ),
-                      Text('Added: ${DateFormat('MMM d, yyyy').format(property.createdAt)}', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
+                      Expanded(child: Text("${property.address.split(',').first}, ${property.address.split(',').last.trim()}", style: const TextStyle(fontSize: 18, fontWeight: FontWeight.w600), maxLines: 1, overflow: TextOverflow.ellipsis)),
+                      Row(children: [Icon(Icons.star, size: 16, color: Colors.black), SizedBox(width: 4), Text("No Rating", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w500))]),
                     ],
                   ),
+
+                  SizedBox(height: 4),
+
+                  // Description text - using original property name
+                  Text(property.name, style: TextStyle(fontSize: 16, color: Colors.grey.shade700, fontWeight: FontWeight.normal), maxLines: 1, overflow: TextOverflow.ellipsis),
+
+                  SizedBox(height: 4),
+
+                  // Occupancy info (from original) - styled to fit new design
+                  Text("${property.occupiedBedSpaces}/${property.totalBedSpaces} bed spaces occupied", style: TextStyle(fontSize: 14, color: Colors.grey.shade600)),
+
+                  SizedBox(height: 10),
+
+                  // Stats in a clean, subtle row - with singular/plural forms
+                  Row(children: [_buildNewStat(Icons.meeting_room_outlined, roomText), SizedBox(width: 16), _buildNewStat(Icons.bed_outlined, bedText)]),
+
+                  SizedBox(height: 10),
+
+                  // Price - removed "for 6 nights" text
+                  Text("ZMW ${property.minPrice.toStringAsFixed(0)}", style: TextStyle(fontSize: 16, fontWeight: FontWeight.w600, decoration: TextDecoration.underline)),
+
+                  SizedBox(height: 8),
+
+                  // Date added - styled to be subtle but present
+                  Text('Added: ${DateFormat('MMM d, yyyy').format(property.createdAt)}', style: TextStyle(fontSize: 12, color: Colors.grey.shade500)),
                 ],
               ),
             ),
@@ -300,8 +351,9 @@ class _PropertiesScreenState extends State<PropertiesScreen> {
     );
   }
 
-  Widget _buildStat(IconData icon, String text) {
-    return Row(children: [Icon(icon, size: 16, color: Colors.grey.shade700), const SizedBox(width: 4), Text(text, style: TextStyle(fontSize: 13, color: Colors.grey.shade800))]);
+  // Updated stat builder to match the new design
+  Widget _buildNewStat(IconData icon, String text) {
+    return Row(children: [Icon(icon, size: 14, color: Colors.grey.shade700), const SizedBox(width: 4), Text(text, style: TextStyle(fontSize: 14, color: Colors.grey.shade700))]);
   }
 
   Color _getStatusColor(Property property) {

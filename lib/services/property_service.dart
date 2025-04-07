@@ -55,9 +55,58 @@ class PropertyService {
         throw Exception('Property not found');
       }
 
+      // Start the sync operation asynchronously - don't await it to keep the UI responsive
+      // This will run in the background without blocking the property fetch
+      syncPropertyBedSpacesCount(propertyId);
+
       return Property.fromFirestore(docSnapshot);
     } catch (e) {
       throw Exception('Failed to fetch property: $e');
+    }
+  }
+
+  // Synchronize totalBedSpaces count for a property
+  Future<void> syncPropertyBedSpacesCount(String propertyId) async {
+    try {
+      // Get all rooms in the property
+      final roomsSnapshot = await _firestore.collection('Properties').doc(propertyId).collection('Rooms').get();
+
+      int actualTotalBedSpaces = 0;
+      int actualOccupiedBedSpaces = 0;
+
+      // Count all bed spaces across all rooms
+      for (var roomDoc in roomsSnapshot.docs) {
+        final bedSpacesSnapshot = await _firestore.collection('Properties').doc(propertyId).collection('Rooms').doc(roomDoc.id).collection('BedSpaces').get();
+
+        // Update the room's bed space count
+        await _firestore.collection('Properties').doc(propertyId).collection('Rooms').doc(roomDoc.id).update({'totalBedSpaces': bedSpacesSnapshot.docs.length});
+
+        // Add to property total
+        actualTotalBedSpaces += bedSpacesSnapshot.docs.length;
+
+        // Count occupied bed spaces
+        int roomOccupiedCount = 0;
+        for (var bedSpaceDoc in bedSpacesSnapshot.docs) {
+          if (bedSpaceDoc.data()['status'] == 'booked' || bedSpaceDoc.data()['status'] == 'occupied') {
+            roomOccupiedCount++;
+          }
+        }
+        actualOccupiedBedSpaces += roomOccupiedCount;
+      }
+
+      // Get current property data
+      final propertyDoc = await _firestore.collection('Properties').doc(propertyId).get();
+      final propertyData = propertyDoc.data();
+
+      // Update only if counts don't match
+      if (propertyData != null && ((propertyData['totalBedSpaces'] as int?) != actualTotalBedSpaces || (propertyData['occupiedBedSpaces'] as int?) != actualOccupiedBedSpaces)) {
+        await _firestore.collection('Properties').doc(propertyId).update({'totalBedSpaces': actualTotalBedSpaces, 'occupiedBedSpaces': actualOccupiedBedSpaces, 'countVerifiedAt': FieldValue.serverTimestamp()});
+
+        print('Synchronized bed space counts for property $propertyId: ' + 'Total: ${actualTotalBedSpaces}, Occupied: ${actualOccupiedBedSpaces}');
+      }
+    } catch (e) {
+      print('Error synchronizing bed space counts: $e');
+      // Don't throw here - we want this to be non-blocking
     }
   }
 
@@ -82,6 +131,8 @@ class PropertyService {
       propertyData['isVerified'] = false; // Admin needs to verify
       propertyData['createdAt'] = FieldValue.serverTimestamp();
       propertyData['updatedAt'] = FieldValue.serverTimestamp();
+      propertyData['totalBedSpaces'] = 0; // Initialize to zero
+      propertyData['occupiedBedSpaces'] = 0; // Initialize to zero
 
       // Ensure location fields are properly set
       _processLocationData(propertyData);
@@ -296,6 +347,7 @@ class PropertyService {
       roomData['propertyId'] = propertyId;
       roomData['photos'] = imageUrls;
       roomData['createdAt'] = FieldValue.serverTimestamp();
+      roomData['totalBedSpaces'] = 0; // Initialize with zero bed spaces
 
       // Create room document
       final roomRef = await _firestore.collection('Properties').doc(propertyId).collection('Rooms').add(roomData);

@@ -31,6 +31,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
   late TabController _tabController;
   bool _isLoading = false;
   List<BedSpace> _bedSpaces = [];
+  int _currentImageIndex = 0;
 
   @override
   void initState() {
@@ -40,6 +41,12 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
       vsync: this,
       initialIndex: widget.initialTabIndex, // Use the provided initial tab index
     );
+
+    // Listener to ensure the UI rebuilds when tabs change
+    _tabController.addListener(() {
+      setState(() {}); // This will trigger a rebuild when tab changes
+    });
+
     _loadBedSpaces();
   }
 
@@ -125,48 +132,202 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
 
   @override
   Widget build(BuildContext context) {
+    // Calculate average price for all available bed spaces
+    double averagePrice = 0;
+    if (_bedSpaces.isNotEmpty) {
+      final availableBedSpaces = _bedSpaces.where((space) => space.status == 'available').toList();
+      if (availableBedSpaces.isNotEmpty) {
+        averagePrice = availableBedSpaces.map((space) => space.price).reduce((a, b) => a + b) / availableBedSpaces.length;
+      } else if (_bedSpaces.isNotEmpty) {
+        // If no available bed spaces, use the average of all bed spaces
+        averagePrice = _bedSpaces.map((space) => space.price).reduce((a, b) => a + b) / _bedSpaces.length;
+      }
+    }
+
     return Scaffold(
-      appBar: AppBar(
-        title: Text(widget.room.name, style: const TextStyle(color: AppTheme.primaryColor)),
-        backgroundColor: Colors.white,
-        elevation: 0,
-        iconTheme: const IconThemeData(color: AppTheme.primaryColor),
-        actions: [IconButton(icon: const Icon(Icons.edit), onPressed: _showEditRoomDialog)],
-        bottom: TabBar(controller: _tabController, tabs: const [Tab(text: 'Details'), Tab(text: 'Bed Spaces')], indicatorColor: AppTheme.primaryColor, labelColor: AppTheme.primaryColor, unselectedLabelColor: Colors.grey),
-      ),
-      body: TabBarView(controller: _tabController, children: [_buildDetailsTab(), _buildBedSpacesTab()]),
-      floatingActionButton: _tabController.index == 1 ? FloatingActionButton(backgroundColor: AppTheme.primaryColor, child: const Icon(Icons.add), onPressed: _navigateToAddBedSpace, tooltip: 'Add Bed Space') : null,
+      body:
+          _isLoading
+              ? const Center(child: CircularProgressIndicator())
+              : Stack(
+                children: [
+                  // Main content
+                  NestedScrollView(
+                    headerSliverBuilder: (context, innerBoxIsScrolled) {
+                      return [
+                        // SliverAppBar with carousel
+                        SliverAppBar(
+                          expandedHeight: 300,
+                          floating: false,
+                          pinned: true,
+                          backgroundColor: Colors.white,
+                          iconTheme: const IconThemeData(color: Colors.white),
+                          flexibleSpace: FlexibleSpaceBar(
+                            background: Stack(
+                              children: [
+                                // Image carousel
+                                _buildImagesCarousel(),
+
+                                // Gradient overlay for better visibility of buttons
+                                Container(decoration: BoxDecoration(gradient: LinearGradient(begin: Alignment.topCenter, end: Alignment.center, colors: [Colors.black.withOpacity(0.5), Colors.transparent]))),
+
+                                // Room type badge
+                                Positioned(
+                                  bottom: 16,
+                                  left: 16,
+                                  child: Container(
+                                    padding: const EdgeInsets.symmetric(horizontal: 12, vertical: 6),
+                                    decoration: BoxDecoration(color: AppTheme.primaryColor, borderRadius: BorderRadius.circular(20)),
+                                    child: Text(widget.room.roomType.toUpperCase(), style: const TextStyle(color: Colors.white, fontWeight: FontWeight.bold, fontSize: 12)),
+                                  ),
+                                ),
+
+                                // Image counter indicator
+                                if (widget.room.photos.isNotEmpty)
+                                  Positioned(
+                                    bottom: 16,
+                                    right: 16,
+                                    child: Container(
+                                      padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
+                                      decoration: BoxDecoration(color: Colors.black.withOpacity(0.6), borderRadius: BorderRadius.circular(12)),
+                                      child: Text('${_currentImageIndex + 1}/${widget.room.photos.length}', style: const TextStyle(color: Colors.white, fontSize: 12, fontWeight: FontWeight.bold)),
+                                    ),
+                                  ),
+                              ],
+                            ),
+                          ),
+                          leading: Padding(padding: const EdgeInsets.all(8.0), child: CircleAvatar(backgroundColor: Colors.white, child: IconButton(icon: const Icon(Icons.arrow_back, color: Colors.black, size: 20), onPressed: () => Navigator.pop(context)))),
+                          actions: [
+                            // Share button
+                            Padding(padding: const EdgeInsets.all(8.0), child: CircleAvatar(backgroundColor: Colors.white, child: IconButton(icon: const Icon(Icons.share, color: Colors.black, size: 20), onPressed: () {}))),
+                            // Favorite button
+                            Padding(padding: const EdgeInsets.all(8.0), child: CircleAvatar(backgroundColor: Colors.white, child: IconButton(icon: const Icon(Icons.favorite_border, color: Colors.black, size: 20), onPressed: () {}))),
+                            // Edit button
+                            Padding(padding: const EdgeInsets.all(8.0), child: CircleAvatar(backgroundColor: Colors.white, child: IconButton(icon: const Icon(Icons.edit, color: Colors.black, size: 20), onPressed: _showEditRoomDialog))),
+                          ],
+                        ),
+
+                        // Room title and basic info
+                        SliverToBoxAdapter(
+                          child: Padding(
+                            padding: const EdgeInsets.all(16.0),
+                            child: Column(
+                              crossAxisAlignment: CrossAxisAlignment.start,
+                              children: [
+                                // Room name
+                                Text(widget.room.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
+                                const SizedBox(height: 8),
+
+                                // Location
+                                Text('In ${widget.property.name}, ${widget.property.address}', style: TextStyle(fontSize: 16, color: Colors.grey[800])),
+                                const SizedBox(height: 12),
+
+                                // Room stats
+                                Row(children: [Text('${widget.room.totalBedSpaces} bed spaces', style: TextStyle(fontSize: 14, color: Colors.grey[800])), Text(' · ', style: TextStyle(color: Colors.grey[800])), Text('${widget.room.area} m²', style: TextStyle(fontSize: 14, color: Colors.grey[800]))]),
+                              ],
+                            ),
+                          ),
+                        ),
+
+                        // Tab bar
+                        SliverPersistentHeader(delegate: _SliverAppBarDelegate(TabBar(controller: _tabController, tabs: const [Tab(text: 'Details'), Tab(text: 'Bed Spaces')], indicatorColor: AppTheme.primaryColor, labelColor: AppTheme.primaryColor, unselectedLabelColor: Colors.grey)), pinned: true),
+                      ];
+                    },
+                    body: TabBarView(controller: _tabController, children: [_buildDetailsTab(), _buildBedSpacesTab()]),
+                  ),
+
+                  // Floating action button for adding bed spaces
+                  if (_tabController.index == 1 && !_isLoading)
+                    Positioned(
+                      right: 16,
+                      bottom: 90, // Position above the price/reserve bar
+                      child: FloatingActionButton(onPressed: _navigateToAddBedSpace, backgroundColor: AppTheme.primaryColor, child: const Icon(Icons.add)),
+                    ),
+
+                  // Sticky price/reserve bar at bottom
+                  // Positioned(
+                  //   left: 0,
+                  //   right: 0,
+                  //   bottom: 0,
+                  //   child: Container(
+                  //     padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 16),
+                  //     decoration: BoxDecoration(color: Colors.white, boxShadow: [BoxShadow(color: Colors.black.withOpacity(0.1), blurRadius: 8, offset: const Offset(0, -4))]),
+                  //     child: Row(
+                  //       mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                  //       children: [
+                  //         // Price info
+                  //         Column(
+                  //           crossAxisAlignment: CrossAxisAlignment.start,
+                  //           mainAxisSize: MainAxisSize.min,
+                  //           children: [
+                  //             Row(children: [Text('ZMW ${averagePrice.toStringAsFixed(2)}', style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const Text(' / night', style: TextStyle(fontSize: 16))]),
+                  //             const SizedBox(height: 4),
+                  //             Text('${_bedSpaces.where((b) => b.status == 'available').length} bed spaces available', style: TextStyle(fontSize: 14, color: Colors.grey[600])),
+                  //           ],
+                  //         ),
+
+                  //         // Reserve button
+                  //         ElevatedButton(
+                  //           onPressed: () {},
+                  //           style: ElevatedButton.styleFrom(
+                  //             backgroundColor: const Color(0xFFFF385C), // Airbnb red
+                  //             foregroundColor: Colors.white,
+                  //             padding: const EdgeInsets.symmetric(horizontal: 24, vertical: 12),
+                  //             shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(8)),
+                  //           ),
+                  //           child: const Text('Reserve', style: TextStyle(fontSize: 16, fontWeight: FontWeight.bold)),
+                  //         ),
+                  //       ],
+                  //     ),
+                  //   ),
+                  // ),
+                ],
+              ),
     );
+  }
+
+  Widget _buildImagesCarousel() {
+    return widget.room.photos.isNotEmpty
+        ? CarouselSlider(
+          options: CarouselOptions(
+            height: 300,
+            viewportFraction: 1.0,
+            enlargeCenterPage: false,
+            autoPlay: widget.room.photos.length > 1,
+            autoPlayInterval: const Duration(seconds: 4),
+            onPageChanged: (index, reason) {
+              setState(() {
+                _currentImageIndex = index;
+              });
+            },
+          ),
+          items:
+              widget.room.photos.map((url) {
+                return Builder(
+                  builder: (BuildContext context) {
+                    return Image.network(url, fit: BoxFit.cover, width: double.infinity, errorBuilder: (ctx, error, stackTrace) => Container(color: Colors.grey.shade300, child: const Icon(Icons.image_not_supported, size: 50, color: Colors.white)));
+                  },
+                );
+              }).toList(),
+        )
+        : Container(color: Colors.grey.shade300, child: const Icon(Icons.meeting_room, size: 80, color: Colors.white));
   }
 
   Widget _buildDetailsTab() {
     return SingleChildScrollView(
-      padding: const EdgeInsets.all(16),
+      padding: const EdgeInsets.fromLTRB(16, 16, 16, 80), // Bottom padding for the reserve button
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
         children: [
-          // Room images carousel
-          _buildImagesCarousel(),
-          const SizedBox(height: 24),
-
-          // Room name and type
-          Text(widget.room.name, style: const TextStyle(fontSize: 24, fontWeight: FontWeight.bold)),
-          const SizedBox(height: 8),
-          Row(
-            children: [
-              Container(
-                padding: const EdgeInsets.symmetric(horizontal: 8, vertical: 4),
-                decoration: BoxDecoration(color: AppTheme.primaryColor.withOpacity(0.1), borderRadius: BorderRadius.circular(16), border: Border.all(color: AppTheme.primaryColor.withOpacity(0.5))),
-                child: Text(widget.room.roomType.toUpperCase(), style: const TextStyle(fontSize: 12, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-              ),
-            ],
-          ),
-          const SizedBox(height: 24),
-
           // Room description
-          _buildSectionHeader('Description'),
-          const SizedBox(height: 8),
+          _buildSectionHeader('About this room'),
+          const SizedBox(height: 12),
           Text(widget.room.description, style: TextStyle(fontSize: 16, color: Colors.grey.shade800, height: 1.5)),
+          const SizedBox(height: 24),
+
+          // Room amenities
+          _buildSectionHeader('Room Amenities'),
+          const SizedBox(height: 12),
+          widget.room.amenities.isEmpty ? Text('No amenities specified for this room.', style: TextStyle(fontSize: 14, color: Colors.grey.shade600, fontStyle: FontStyle.italic)) : Wrap(spacing: 8, runSpacing: 8, children: widget.room.amenities.map((amenity) => _buildFeatureChip(amenity)).toList()),
           const SizedBox(height: 24),
 
           // Room details
@@ -175,13 +336,33 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
           _buildRoomDetailsCard(),
           const SizedBox(height: 24),
 
-          // Room amenities
-          _buildSectionHeader('Room Amenities'),
-          const SizedBox(height: 12),
-          _buildAmenitiesCard(),
+          // Available bed spaces summary
+          _buildSectionHeader('Bed Spaces'),
+          const SizedBox(height: 8),
+          Row(
+            children: [
+              Column(
+                crossAxisAlignment: CrossAxisAlignment.start,
+                children: [
+                  Text('Available Bed Spaces', style: TextStyle(fontSize: 14, color: Colors.grey.shade700)),
+                  const SizedBox(height: 4),
+                  Text('${_bedSpaces.where((b) => b.status == 'available').length} / ${_bedSpaces.length}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
+                ],
+              ),
+              const Spacer(),
+              OutlinedButton.icon(
+                onPressed: () {
+                  _tabController.animateTo(1); // Switch to Bed Spaces tab
+                },
+                icon: const Icon(Icons.bed),
+                label: const Text('View All Bed Spaces'),
+                style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryColor, side: const BorderSide(color: AppTheme.primaryColor), padding: const EdgeInsets.symmetric(horizontal: 16, vertical: 8)),
+              ),
+            ],
+          ),
           const SizedBox(height: 24),
 
-          // Property info
+          // Property information
           _buildSectionHeader('Property Information'),
           const SizedBox(height: 12),
           _buildPropertyInfoCard(),
@@ -217,7 +398,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
                   : _bedSpaces.isEmpty
                   ? EmptyStateWidget(icon: Icons.bed, title: 'No Bed Spaces', message: 'This room doesn\'t have any bed spaces yet. Tap the button below to add your first bed space.', buttonText: 'Add Bed Space', onButtonPressed: _navigateToAddBedSpace)
                   : ListView.builder(
-                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 16),
+                    padding: const EdgeInsets.fromLTRB(16, 0, 16, 80), // Add bottom padding for the bottom bar
                     itemCount: _bedSpaces.length,
                     itemBuilder: (context, index) {
                       return _buildBedSpaceCard(_bedSpaces[index]);
@@ -226,22 +407,6 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
         ),
       ],
     );
-  }
-
-  Widget _buildImagesCarousel() {
-    return widget.room.photos.isNotEmpty
-        ? CarouselSlider(
-          options: CarouselOptions(height: 200, viewportFraction: 1.0, enlargeCenterPage: false, autoPlay: widget.room.photos.length > 1, autoPlayInterval: const Duration(seconds: 4)),
-          items:
-              widget.room.photos.map((url) {
-                return Builder(
-                  builder: (BuildContext context) {
-                    return Container(width: MediaQuery.of(context).size.width, decoration: BoxDecoration(borderRadius: BorderRadius.circular(12), image: DecorationImage(image: NetworkImage(url), fit: BoxFit.cover)));
-                  },
-                );
-              }).toList(),
-        )
-        : Container(height: 200, width: double.infinity, decoration: BoxDecoration(color: Colors.grey.shade300, borderRadius: BorderRadius.circular(12)), child: const Center(child: Icon(Icons.meeting_room, size: 80, color: Colors.white)));
   }
 
   Widget _buildRoomDetailsCard() {
@@ -253,39 +418,9 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
         child: Column(
           children: [
             Row(mainAxisAlignment: MainAxisAlignment.spaceBetween, children: [_buildRoomDetailItem('Room Type', widget.room.roomType), _buildRoomDetailItem('Area', '${widget.room.area} m²'), _buildRoomDetailItem('Bed Spaces', widget.room.totalBedSpaces.toString())]),
-            const Divider(height: 32),
-            Row(
-              mainAxisAlignment: MainAxisAlignment.spaceBetween,
-              children: [
-                Column(
-                  crossAxisAlignment: CrossAxisAlignment.start,
-                  children: [
-                    Text('Available Bed Spaces', style: TextStyle(fontSize: 12, color: Colors.grey.shade600)),
-                    const SizedBox(height: 4),
-                    Text('${_bedSpaces.where((b) => b.status == 'available').length} / ${_bedSpaces.length}', style: const TextStyle(fontSize: 16, fontWeight: FontWeight.bold, color: AppTheme.primaryColor)),
-                  ],
-                ),
-                OutlinedButton.icon(
-                  onPressed: () {
-                    _tabController.animateTo(1); // Switch to Bed Spaces tab
-                  },
-                  icon: const Icon(Icons.bed),
-                  label: const Text('Manage Bed Spaces'),
-                  style: OutlinedButton.styleFrom(foregroundColor: AppTheme.primaryColor, side: const BorderSide(color: AppTheme.primaryColor)),
-                ),
-              ],
-            ),
           ],
         ),
       ),
-    );
-  }
-
-  Widget _buildAmenitiesCard() {
-    return Card(
-      elevation: 2,
-      shape: RoundedRectangleBorder(borderRadius: BorderRadius.circular(12)),
-      child: Padding(padding: const EdgeInsets.all(16), child: widget.room.amenities.isEmpty ? const Center(child: Text('No amenities specified for this room.')) : Wrap(spacing: 8, runSpacing: 8, children: widget.room.amenities.map((amenity) => _buildFeatureChip(amenity)).toList())),
     );
   }
 
@@ -353,8 +488,8 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
                 borderRadius: const BorderRadius.only(topLeft: Radius.circular(12), topRight: Radius.circular(12)),
                 child:
                     bedSpace.photos.isNotEmpty
-                        ? Image.network(bedSpace.photos.first, height: 120, width: double.infinity, fit: BoxFit.cover, errorBuilder: (ctx, error, stackTrace) => Container(height: 120, color: Colors.grey.shade300, child: const Icon(Icons.bed, size: 40, color: Colors.white)))
-                        : Container(height: 120, color: Colors.grey.shade300, child: const Icon(Icons.bed, size: 40, color: Colors.white)),
+                        ? Image.network(bedSpace.photos.first, height: 150, width: double.infinity, fit: BoxFit.cover, errorBuilder: (ctx, error, stackTrace) => Container(height: 150, color: Colors.grey.shade300, child: const Icon(Icons.bed, size: 40, color: Colors.white)))
+                        : Container(height: 150, color: Colors.grey.shade300, child: const Icon(Icons.bed, size: 40, color: Colors.white)),
               ),
               // Status badge
               Positioned(
@@ -437,7 +572,7 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
   }
 
   Widget _buildSectionHeader(String title) {
-    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 18, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Container(width: 40, height: 3, color: AppTheme.primaryColor)]);
+    return Column(crossAxisAlignment: CrossAxisAlignment.start, children: [Text(title, style: const TextStyle(fontSize: 20, fontWeight: FontWeight.bold)), const SizedBox(height: 4), Container(width: 40, height: 3, color: AppTheme.primaryColor)]);
   }
 
   Widget _buildFeatureChip(String text, {bool small = false}) {
@@ -474,5 +609,27 @@ class _RoomDetailsScreenState extends State<RoomDetailsScreen> with SingleTicker
         Text(status, style: TextStyle(fontSize: 12, color: Colors.grey.shade700)),
       ],
     );
+  }
+}
+
+class _SliverAppBarDelegate extends SliverPersistentHeaderDelegate {
+  final TabBar _tabBar;
+
+  _SliverAppBarDelegate(this._tabBar);
+
+  @override
+  double get minExtent => _tabBar.preferredSize.height;
+
+  @override
+  double get maxExtent => _tabBar.preferredSize.height;
+
+  @override
+  Widget build(BuildContext context, double shrinkOffset, bool overlapsContent) {
+    return Container(color: Colors.white, child: _tabBar);
+  }
+
+  @override
+  bool shouldRebuild(_SliverAppBarDelegate oldDelegate) {
+    return false;
   }
 }

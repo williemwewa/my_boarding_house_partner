@@ -47,7 +47,15 @@ class _EditBedSpaceScreenState extends State<EditBedSpaceScreen> {
     _nameController.text = widget.bedSpace.name;
     _descriptionController.text = widget.bedSpace.description;
     _priceController.text = widget.bedSpace.price.toString();
-    _priceUnit = widget.bedSpace.priceUnit;
+
+    // Normalize the price unit by removing 'per ' prefix if it exists
+    String normalizedPriceUnit = widget.bedSpace.priceUnit;
+    if (normalizedPriceUnit.startsWith('per ')) {
+      normalizedPriceUnit = normalizedPriceUnit.substring(4);
+    }
+    // Ensure it's one of our valid price units
+    _priceUnit = _priceUnits.contains(normalizedPriceUnit) ? normalizedPriceUnit : 'month';
+
     _selectedFeatures = List<String>.from(widget.bedSpace.features);
     _existingImages = List<String>.from(widget.bedSpace.photos);
   }
@@ -79,7 +87,15 @@ class _EditBedSpaceScreenState extends State<EditBedSpaceScreen> {
       showDialog(context: context, barrierDismissible: false, builder: (context) => const LoadingDialog(message: 'Updating bed space...'));
 
       try {
-        Map<String, dynamic> bedSpaceData = {'name': _nameController.text.trim(), 'description': _descriptionController.text.trim(), 'price': double.parse(_priceController.text), 'priceUnit': _priceUnit, 'features': _selectedFeatures};
+        // Create a comprehensive data object that includes all necessary fields
+        Map<String, dynamic> bedSpaceData = {
+          'name': _nameController.text.trim(),
+          'description': _descriptionController.text.trim(),
+          'price': double.parse(_priceController.text),
+          'priceUnit': _priceUnit.startsWith('per ') ? _priceUnit : 'per $_priceUnit',
+          'features': _selectedFeatures,
+          'photos': _existingImages, // Always include existing images
+        };
 
         await _propertyService.updateBedSpace(widget.propertyId, widget.roomId, widget.bedSpace.id, bedSpaceData, newImages: _newImages.isNotEmpty ? _newImages : null);
 
@@ -298,7 +314,7 @@ class _EditBedSpaceScreenState extends State<EditBedSpaceScreen> {
               const SizedBox(height: 8),
               Row(
                 children: [
-                  ElevatedButton.icon(onPressed: _pickImages, icon: const Icon(Icons.add_a_photo), label: const Text('Add Images'), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor)),
+                  ElevatedButton.icon(onPressed: _pickImages, icon: const Icon(Icons.add_a_photo, color: Colors.white), label: const Text('Add Images', style: TextStyle(color: Colors.white)), style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white)),
                   const SizedBox(width: 16),
                   Text('${_newImages.length} new images selected', style: TextStyle(color: Colors.grey.shade600, fontStyle: FontStyle.italic)),
                 ],
@@ -340,7 +356,11 @@ class _EditBedSpaceScreenState extends State<EditBedSpaceScreen> {
               // Submit button
               SizedBox(
                 width: double.infinity,
-                child: ElevatedButton(onPressed: _isLoading ? null : _submitForm, style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, padding: const EdgeInsets.symmetric(vertical: 16)), child: const Text('Update Bed Space', style: TextStyle(fontSize: 16))),
+                child: ElevatedButton(
+                  onPressed: _isLoading ? null : _submitForm,
+                  style: ElevatedButton.styleFrom(backgroundColor: AppTheme.primaryColor, foregroundColor: Colors.white, padding: const EdgeInsets.symmetric(vertical: 16)),
+                  child: const Text('Update Bed Space', style: TextStyle(fontSize: 16, color: Colors.white)),
+                ),
               ),
             ],
           ),
